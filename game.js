@@ -5,6 +5,14 @@
    * Config
    ********************************************************************/
   const SAVE_KEY = "pf_explorer_save_v1";
+  const GAME_CONFIG = {
+    maxLevel: 10,
+    defaultLogMode: "compact"
+  };
+  const LOG_MODES = {
+    compact: "compact",
+    detail: "detail"
+  };
   const DAMAGE_TYPES = [
     "bludgeoning",
     "piercing",
@@ -30,13 +38,14 @@
   const MAP_MIN_CELL_SIZE = 24;
   const MAP_WIDTH_SCALE_RATIO = 0.8;
   const MAP_VIEWPORT_MARGIN = 24;
+  const MAP_MAX_VISIBLE_TILES = 9;
 
   const MAP_ICONS = {
     unknown: "❔",
     player: "🧍",
     home: "🏘️",
-    dungeon: "🚪",
-    monster: "👾",
+    dungeon: "🕳️",
+    monster: "👹",
     resource: "⛏️",
     treasure: "💰",
     forest: "🌲",
@@ -166,16 +175,16 @@
     },
     guard_stance: {
       id: "guard_stance",
-      name: "Guard Stance",
+      name: "Power Strike",
       classId: "Fighter",
       kind: "active",
-      tags: ["Self", "Buff", "Arm"],
+      tags: ["Attack", "Arm"],
       contexts: ["combat"],
       costSp: 1,
-      duration: 1,
-      summary: "Active combat ability. Costs 1 SP and grants Guarded for 1 round (+2 AC).",
+      duration: null,
+      summary: "Active combat ability. Cost 1 SP. Attack with -2 to hit, dealing +4 damage on a hit.",
       details: [
-        "Plant your feet and keep your guard high."
+        "Commit to a heavier blow and trust it to land cleanly."
       ]
     },
     feint_strike: {
@@ -334,16 +343,16 @@
     },
     open_hand: {
       id: "open_hand",
-      name: "Open Hand",
+      name: "Tree Stance",
       classId: "Monk",
       kind: "active",
-      tags: ["Debuff", "Arm"],
+      tags: ["Self", "Buff", "Stance", "Arm"],
       contexts: ["combat"],
       costSp: 1,
-      duration: 1,
-      summary: "Active combat ability. Costs 1 SP. Make a strike check against the enemy's Fortitude DC; on a success, the enemy becomes Off-Guard for 1 round.",
+      duration: 10,
+      summary: "Active combat buff. Cost 1 SP. Lasts 10 rounds. Gain damage reduction 3 to bludgeoning, piercing, slashing damage.",
       details: [
-        "A precise strike opens the target up for follow-up attacks."
+        "Root yourself, harden your posture, and let the impact glance away."
       ]
     },
     river_stance: {
@@ -421,13 +430,13 @@
       name: "Hunter's Mark",
       classId: "Ranger",
       kind: "active",
-      tags: ["Debuff", "Head"],
+      tags: ["Debuff", "Mark", "Head"],
       contexts: ["combat"],
       costSp: 1,
-      duration: 1,
-      summary: "Active combat ability. Costs 1 SP. Make a Survival check against the enemy's Will DC; on a success, the enemy becomes Off-Guard for 1 round.",
+      duration: 5,
+      summary: "Active combat ability. Cost 1 SP. Make a Survival check against the enemy's Will DC; on a success, the enemy becomes Hunter's Marked for 5 rounds and your attacks against it deal +1d4 damage.",
       details: [
-        "Study the prey, then exploit the opening."
+        "Track the rhythm, fix the quarry in your sights, and strike where it matters."
       ]
     },
     eagle_eye: {
@@ -778,6 +787,22 @@
       tags: ["Buff"],
       modifiers: { acModifier: 2 }
     },
+    brace_for_impact: {
+      id: "brace_for_impact",
+      name: "Brace for Impact",
+      description: "Resistance 3 to bludgeoning, piercing, and slashing for the duration.",
+      duration: 1,
+      durationMode: "turn",
+      durationUnit: "rounds",
+      tags: ["Buff"],
+      modifiers: {
+        resistances: {
+          bludgeoning: 3,
+          piercing: 3,
+          slashing: 3
+        }
+      }
+    },
     off_guard: {
       id: "off_guard",
       name: "Off-Guard",
@@ -797,6 +822,26 @@
       durationUnit: "rounds",
       tags: ["Debuff"],
       modifiers: { acModifier: -4, attackRollModifier: -2 }
+    },
+    staggered: {
+      id: "staggered",
+      name: "Staggered",
+      description: "-2 attack rolls for the duration.",
+      duration: 2,
+      durationMode: "turn",
+      durationUnit: "rounds",
+      tags: ["Debuff"],
+      modifiers: { attackRollModifier: -2 }
+    },
+    marked_prey: {
+      id: "marked_prey",
+      name: "Hunter's Mark",
+      description: "Your attacks against this target deal +1d4 damage while it lasts.",
+      duration: 5,
+      durationMode: "turn",
+      durationUnit: "rounds",
+      tags: ["Debuff", "Mark"],
+      modifiers: {}
     },
     blinded: {
       id: "blinded",
@@ -884,6 +929,22 @@
       durationUnit: "rounds",
       tags: ["Buff"],
       modifiers: {}
+    },
+    tree_stance: {
+      id: "tree_stance",
+      name: "Tree Stance",
+      description: "Resistance 3 to bludgeoning, piercing, and slashing while the stance lasts.",
+      duration: 10,
+      durationMode: "turn",
+      durationUnit: "rounds",
+      tags: ["Buff", "Stance"],
+      modifiers: {
+        resistances: {
+          bludgeoning: 3,
+          piercing: 3,
+          slashing: 3
+        }
+      }
     },
     river_stance: {
       id: "river_stance",
@@ -1137,73 +1198,17 @@
   ];
 
   /********************************************************************
-   * Data: Consumables (healing + stamina recovery)
+   * Data: Consumables (Potions heal 2d4+2 per request)
    ********************************************************************/
-  function createHealingConsumable({ id, name, healExpr, cost, effectText }){
-    return {
-      id,
-      name,
-      type:"consumable",
-      category:"potion",
-      cost,
-      buyable:true,
-      effectText,
+  const CONSUMABLES = [
+    { id:"potion_healing", name:"Potion of Healing", type:"consumable", category:"potion", cost:500, buyable:true,
       use: (state) => {
-        const heal = rollDice(healExpr);
+        const heal = rollDice("2d4+2");
         const before = state.player.hp.current;
         state.player.hp.current = clamp(state.player.hp.current + heal, 0, state.player.hp.max);
-        log(state, `You drink ${name} and recover ${state.player.hp.current - before} HP.`);
+        log(state, `You drink a Potion of Healing and recover ${state.player.hp.current - before} HP.`);
       }
-    };
-  }
-
-  function createStaminaConsumable({ id, name, recoverExpr, cost, effectText }){
-    return {
-      id,
-      name,
-      type:"consumable",
-      category:"potion",
-      cost,
-      buyable:true,
-      effectText,
-      use: (state) => {
-        const recovered = rollDice(recoverExpr);
-        const before = state.player.sp.current;
-        state.player.sp.current = clamp(state.player.sp.current + recovered, 0, state.player.sp.max);
-        log(state, `You drink ${name} and recover ${state.player.sp.current - before} SP.`);
-      }
-    };
-  }
-
-  const CONSUMABLES = [
-    createHealingConsumable({
-      id:"potion_healing",
-      name:"Potion of Healing",
-      healExpr:"2d4+2",
-      cost:500,
-      effectText:"Restores 2d4+2 HP."
-    }),
-    createHealingConsumable({
-      id:"potion_healing_greater",
-      name:"Greater Potion of Healing",
-      healExpr:"4d4+4",
-      cost:1200,
-      effectText:"Restores 4d4+4 HP."
-    }),
-    createStaminaConsumable({
-      id:"potion_stamina_minor",
-      name:"Minor Stamina Tonic",
-      recoverExpr:"1d4+1",
-      cost:350,
-      effectText:"Restores 1d4+1 SP."
-    }),
-    createStaminaConsumable({
-      id:"potion_stamina_major",
-      name:"Greater Stamina Tonic",
-      recoverExpr:"2d4+2",
-      cost:750,
-      effectText:"Restores 2d4+2 SP."
-    })
+    }
   ];
 
   const AMMO = [
@@ -1223,55 +1228,12 @@
   ];
 
   /********************************************************************
-   * Data: Resources (for exploration, crafting, & selling)
+   * Data: Resources (for exploration & selling)
    ********************************************************************/
   const RESOURCES = [
-    { id:"herbs",         name:"Wild Herbs",    type:"resource", sellValue: 35, stackable:true, gatherSkill:"Survival" },
-    { id:"ore",           name:"Iron Ore",      type:"resource", sellValue: 60, stackable:true, gatherSkill:"Crafting" },
-    { id:"hide",          name:"Beast Hide",    type:"resource", sellValue: 45, stackable:true, gatherSkill:"Survival" },
-    { id:"hardwood",      name:"Hardwood",      type:"resource", sellValue: 55, stackable:true, gatherSkill:"Survival" },
-    { id:"crystal_shard", name:"Crystal Shard", type:"resource", sellValue: 80, stackable:true, gatherSkill:"Crafting" },
-    { id:"ember_resin",   name:"Ember Resin",   type:"resource", sellValue: 70, stackable:true, gatherSkill:"Crafting" },
-    { id:"bog_moss",      name:"Bog Moss",      type:"resource", sellValue: 50, stackable:true, gatherSkill:"Survival" }
-  ];
-
-  function enhancedItemId(baseItemId, level=1){
-    return `${baseItemId}_plus${Math.max(1, Number(level || 1))}`;
-  }
-
-  function buildEnhancedItemDefinition(baseItem, level=1){
-    const plus = Math.max(1, Number(level || 1));
-    const enhanced = {
-      ...baseItem,
-      id: enhancedItemId(baseItem.id, plus),
-      name: `${baseItem.name} +${plus}`,
-      buyable: false,
-      baseItemId: baseItem.id,
-      enhancementLevel: plus
-    };
-
-    if(baseItem.type === "weapon"){
-      enhanced.attackBonus = Math.max(0, Number(baseItem.attackBonus || 0)) + plus;
-      enhanced.damageBonus = Math.max(0, Number(baseItem.damageBonus || 0)) + plus;
-    }else if(baseItem.type === "armor" || baseItem.category === "shield" || baseItem.type === "offhand"){
-      enhanced.acBonus = Math.max(0, Number(baseItem.acBonus || 0)) + plus;
-    }
-
-    return enhanced;
-  }
-
-  function isEnhanceableWeaponItem(item){
-    return !!(item && item.type === "weapon" && !Number(item.enhancementLevel || 0));
-  }
-
-  function isEnhanceableGearItem(item){
-    return !!(item && !Number(item.enhancementLevel || 0) && ((item.type === "armor" && item.id !== "cloth") || item.category === "shield" || item.type === "offhand"));
-  }
-
-  const ENHANCED_ITEMS = [
-    ...WEAPONS.map(item => buildEnhancedItemDefinition(item, 1)),
-    ...ARMORS.filter(item => item.id !== "cloth").map(item => buildEnhancedItemDefinition(item, 1)),
-    ...OFFHAND.map(item => buildEnhancedItemDefinition(item, 1))
+    { id:"herbs", name:"Wild Herbs", type:"resource", sellValue: 35, stackable:true },
+    { id:"ore",   name:"Iron Ore",   type:"resource", sellValue: 60, stackable:true },
+    { id:"hide",  name:"Beast Hide", type:"resource", sellValue: 45, stackable:true }
   ];
 
   /********************************************************************
@@ -1377,7 +1339,7 @@
         { id:"reflex", label:"Reflex", dc:17 },
         { id:"will", label:"Will", dc:12 }
       ],
-      loot: { coins:[140, 320], items:[{id:"crystal_shard", chance:0.40, qty:[1,2]}, {id:"hide", chance:0.30, qty:[1,1]}] },
+      loot: { coins:[140, 320], items:[{id:"ore", chance:0.35, qty:[1,2]}, {id:"hide", chance:0.30, qty:[1,1]}] },
       traits:["animal","poison"]
     },
     {
@@ -1394,7 +1356,7 @@
         { id:"reflex", label:"Reflex", dc:16 },
         { id:"will", label:"Will", dc:14 }
       ],
-      loot: { coins:[210, 430], items:[{id:"hide", chance:0.45, qty:[1,2]}, {id:"ember_resin", chance:0.35, qty:[1,2]}, {id:"potion_healing", chance:0.15, qty:[1,1]}] },
+      loot: { coins:[210, 430], items:[{id:"hide", chance:0.45, qty:[1,2]}, {id:"potion_healing", chance:0.15, qty:[1,1]}] },
       traits:["elemental","beast","fire"]
     },
     {
@@ -1411,7 +1373,7 @@
         { id:"reflex", label:"Reflex", dc:15 },
         { id:"will", label:"Will", dc:18 }
       ],
-      loot: { coins:[220, 460], items:[{id:"ore", chance:0.30, qty:[1,2]}, {id:"ember_resin", chance:0.30, qty:[1,1]}, {id:"potion_healing", chance:0.22, qty:[1,1]}] },
+      loot: { coins:[220, 460], items:[{id:"ore", chance:0.30, qty:[1,2]}, {id:"potion_healing", chance:0.22, qty:[1,1]}] },
       traits:["humanoid","fire"]
     },
     {
@@ -1428,7 +1390,7 @@
         { id:"reflex", label:"Reflex", dc:14 },
         { id:"will", label:"Will", dc:15 }
       ],
-      loot: { coins:[280, 560], items:[{id:"hide", chance:0.55, qty:[1,2]}, {id:"bog_moss", chance:0.45, qty:[1,2]}, {id:"herbs", chance:0.40, qty:[1,3]}] },
+      loot: { coins:[280, 560], items:[{id:"hide", chance:0.55, qty:[1,2]}, {id:"herbs", chance:0.40, qty:[1,3]}] },
       traits:["giant","regenerating"]
     },
     {
@@ -1445,7 +1407,7 @@
         { id:"reflex", label:"Reflex", dc:17 },
         { id:"will", label:"Will", dc:20 }
       ],
-      loot: { coins:[300, 610], items:[{id:"bog_moss", chance:0.40, qty:[1,2]}, {id:"herbs", chance:0.50, qty:[1,2]}, {id:"potion_healing", chance:0.18, qty:[1,1]}] },
+      loot: { coins:[300, 610], items:[{id:"herbs", chance:0.50, qty:[1,2]}, {id:"potion_healing", chance:0.18, qty:[1,1]}] },
       traits:["undead","incorporeal"]
     },
     {
@@ -1462,7 +1424,7 @@
         { id:"reflex", label:"Reflex", dc:19 },
         { id:"will", label:"Will", dc:17 }
       ],
-      loot: { coins:[420, 780], items:[{id:"ore", chance:0.60, qty:[2,4]}, {id:"crystal_shard", chance:0.35, qty:[1,2]}, {id:"potion_healing", chance:0.25, qty:[1,1]}] },
+      loot: { coins:[420, 780], items:[{id:"ore", chance:0.60, qty:[2,4]}, {id:"potion_healing", chance:0.25, qty:[1,1]}] },
       traits:["dragon","electricity"]
     },
     {
@@ -1479,7 +1441,7 @@
         { id:"reflex", label:"Reflex", dc:18 },
         { id:"will", label:"Will", dc:21 }
       ],
-      loot: { coins:[460, 860], items:[{id:"ore", chance:0.50, qty:[2,3]}, {id:"crystal_shard", chance:0.30, qty:[1,2]}, {id:"potion_healing", chance:0.30, qty:[1,1]}] },
+      loot: { coins:[460, 860], items:[{id:"ore", chance:0.50, qty:[2,3]}, {id:"potion_healing", chance:0.30, qty:[1,1]}] },
       traits:["construct","armored"]
     }
   ];
@@ -1490,22 +1452,22 @@
   const AREAS = [
     { id:"town", name:"Astaria", level:0, map:false, shop:true, description:"A safe haven. Rest, trade, and plan your next venture." },
     { id:"woods", name:"Whispering Woods", level:1, map:true, size:18, travelCostCp:0, description:"A dense, misty forest with scattered ruins, hidden dungeon mouths, and lurking predators.",
-      encounterPool:["goblin","wolf"], resourcePool:["herbs","hide","hardwood"], treasureRange:[20, 120]
+      encounterPool:["goblin","wolf"], resourcePool:["herbs","hide"], treasureRange:[20, 120]
     },
     { id:"ruins", name:"Sunken Ruins", level:2, map:true, size:9, travelCostCp:0, description:"Ancient stonework half-swallowed by earth. Bandits and the restless dead prowl here.",
-      encounterPool:["bandit","skeleton","wolf"], resourcePool:["ore","herbs","hardwood"], treasureRange:[80, 240]
+      encounterPool:["bandit","skeleton","wolf"], resourcePool:["ore","herbs"], treasureRange:[80, 240]
     },
     { id:"caves", name:"Crystal Caves", level:3, map:true, size:9, travelCostCp:0, description:"Wet caverns with jagged mineral growths, acidic pools, and patient predators.",
-      encounterPool:["slime","crystal_spider","skeleton"], resourcePool:["ore","crystal_shard"], treasureRange:[120, 320]
+      encounterPool:["slime","crystal_spider","skeleton"], resourcePool:["ore"], treasureRange:[120, 320]
     },
     { id:"vault", name:"Ember Vault", level:4, map:true, size:9, travelCostCp:0, description:"A buried furnace-complex that still breathes old heat through cracked stone halls.",
-      encounterPool:["ember_hound","cinder_acolyte","slime"], resourcePool:["ore","hide","ember_resin"], treasureRange:[180, 420]
+      encounterPool:["ember_hound","cinder_acolyte","slime"], resourcePool:["ore","hide"], treasureRange:[180, 420]
     },
     { id:"mire", name:"Mire of Echoes", level:5, map:true, size:9, travelCostCp:0, description:"A drowned fen of broken causeways, black pools, and voices that linger in the fog.",
-      encounterPool:["marsh_troll","fen_wraith","wolf"], resourcePool:["herbs","hide","bog_moss"], treasureRange:[260, 560]
+      encounterPool:["marsh_troll","fen_wraith","wolf"], resourcePool:["herbs","hide"], treasureRange:[260, 560]
     },
     { id:"bastion", name:"Stormwatch Bastion", level:6, map:true, size:9, travelCostCp:0, description:"A shattered high keep where lightning clings to old stone and elite guardians remain at watch.",
-      encounterPool:["storm_drake","obsidian_knight","fen_wraith"], resourcePool:["ore","herbs","crystal_shard","ember_resin"], treasureRange:[360, 760]
+      encounterPool:["storm_drake","obsidian_knight","fen_wraith"], resourcePool:["ore","herbs"], treasureRange:[360, 760]
     }
   ];
 
@@ -1521,7 +1483,7 @@
    * Item index (for inventory / shop lookup)
    ********************************************************************/
   const ITEM_INDEX = new Map();
-  [...WEAPONS, ...ARMORS, ...OFFHAND, ...ACCESSORIES, ...CONSUMABLES, ...AMMO, ...RESOURCES, ...ENHANCED_ITEMS].forEach(it => ITEM_INDEX.set(it.id, it));
+  [...WEAPONS, ...ARMORS, ...OFFHAND, ...ACCESSORIES, ...CONSUMABLES, ...AMMO, ...RESOURCES].forEach(it => ITEM_INDEX.set(it.id, it));
 
   function getItem(id){
     const it = ITEM_INDEX.get(id);
@@ -1553,200 +1515,6 @@
   function weaponAmmoCount(player, weapon){
     const ammoItemId = ammoItemIdForWeapon(weapon);
     return ammoItemId ? itemQuantity(player, ammoItemId) : 0;
-  }
-
-  const WEAPON_ENHANCEMENT_RECIPE = {
-    id:"enhance_weapon_plus1",
-    name:"Enhance Weapon +1",
-    summary:"Upgrade a weapon to +1 attack and +1 damage.",
-    ingredients:[
-      { id:"ore", qty:3 },
-      { id:"hardwood", qty:1 },
-      { id:"crystal_shard", qty:1 }
-    ]
-  };
-
-  const GEAR_ENHANCEMENT_RECIPE = {
-    id:"reinforce_gear_plus1",
-    name:"Reinforce Gear +1",
-    summary:"Upgrade armor or shields to +1 AC.",
-    ingredients:[
-      { id:"ore", qty:2 },
-      { id:"hide", qty:2 },
-      { id:"ember_resin", qty:1 }
-    ]
-  };
-
-  const ALCHEMY_RECIPES = [
-    {
-      id:"brew_healing_potion",
-      name:"Brew Potion of Healing",
-      resultItemId:"potion_healing",
-      resultQty:1,
-      summary:"Craft a standard healing potion.",
-      ingredients:[
-        { id:"herbs", qty:3 }
-      ]
-    },
-    {
-      id:"brew_greater_healing_potion",
-      name:"Brew Greater Potion of Healing",
-      resultItemId:"potion_healing_greater",
-      resultQty:1,
-      summary:"Craft a stronger healing draught.",
-      ingredients:[
-        { id:"herbs", qty:6 },
-        { id:"crystal_shard", qty:1 }
-      ]
-    },
-    {
-      id:"brew_minor_stamina_tonic",
-      name:"Brew Minor Stamina Tonic",
-      resultItemId:"potion_stamina_minor",
-      resultQty:1,
-      summary:"Craft a tonic that restores SP.",
-      ingredients:[
-        { id:"herbs", qty:2 },
-        { id:"bog_moss", qty:1 }
-      ]
-    },
-    {
-      id:"brew_greater_stamina_tonic",
-      name:"Brew Greater Stamina Tonic",
-      resultItemId:"potion_stamina_major",
-      resultQty:1,
-      summary:"Craft a stronger tonic that restores more SP.",
-      ingredients:[
-        { id:"herbs", qty:4 },
-        { id:"bog_moss", qty:2 },
-        { id:"crystal_shard", qty:1 }
-      ]
-    }
-  ];
-
-  function craftingRecipeById(recipeId){
-    return ALCHEMY_RECIPES.find(recipe => recipe.id === recipeId) || null;
-  }
-
-  function craftingHasIngredients(player, ingredients){
-    return (ingredients || []).every(entry => itemQuantity(player, entry.id) >= Math.max(1, Number(entry.qty || 1)));
-  }
-
-  function consumeCraftingIngredients(player, ingredients){
-    if(!craftingHasIngredients(player, ingredients)) return false;
-    for(const entry of ingredients || []){
-      const qty = Math.max(1, Number(entry.qty || 1));
-      if(!removeItem(player, entry.id, qty)) return false;
-    }
-    return true;
-  }
-
-  function craftingIngredientSummary(ingredients){
-    return (ingredients || []).map(entry => `${Math.max(1, Number(entry.qty || 1))}× ${getItem(entry.id).name}`).join(", ");
-  }
-
-  function craftingTargets(player, kind){
-    const predicate = kind === "gear" ? isEnhanceableGearItem : isEnhanceableWeaponItem;
-    const targets = [];
-
-    for(const [slotId, itemId] of Object.entries(player && player.equipment || {})){
-      if(!itemId) continue;
-      const item = getItem(itemId);
-      if(!predicate(item)) continue;
-      targets.push({
-        key: `equip:${slotId}:${itemId}`,
-        source: "equipment",
-        slotId,
-        itemId,
-        item,
-        label: `${item.name} (equipped: ${equipmentSlotLabel(slotId)})`
-      });
-    }
-
-    for(const entry of player && player.inventory || []){
-      const item = getItem(entry.itemId);
-      if(!predicate(item)) continue;
-      targets.push({
-        key: `inventory:${entry.itemId}`,
-        source: "inventory",
-        slotId: null,
-        itemId: entry.itemId,
-        item,
-        label: `${item.name} (inventory ×${Math.max(1, Number(entry.qty || 1))})`
-      });
-    }
-
-    return targets.sort((a, b) => a.label.localeCompare(b.label));
-  }
-
-  function craftAlchemyRecipe(state, recipeId){
-    if(state.world.areaId !== "town"){
-      log(state, "Crafting can only be performed in town.");
-      return;
-    }
-
-    const recipe = craftingRecipeById(recipeId);
-    if(!recipe) return;
-
-    if(!craftingHasIngredients(state.player, recipe.ingredients)){
-      log(state, `Missing ingredients for ${recipe.name}. Need ${craftingIngredientSummary(recipe.ingredients)}.`);
-      return;
-    }
-
-    if(!consumeCraftingIngredients(state.player, recipe.ingredients)){
-      log(state, "Crafting failed because the ingredients could not be consumed.");
-      return;
-    }
-
-    addItem(state.player, recipe.resultItemId, Math.max(1, Number(recipe.resultQty || 1)));
-    const resultItem = getItem(recipe.resultItemId);
-    log(state, `Crafted ${resultItem.name}${Number(recipe.resultQty || 1) > 1 ? ` ×${recipe.resultQty}` : ""}.`);
-    save(state);
-    render();
-  }
-
-  function craftEnhancement(state, kind, targetKey){
-    if(state.world.areaId !== "town"){
-      log(state, "Crafting can only be performed in town.");
-      return;
-    }
-
-    const recipe = kind === "gear" ? GEAR_ENHANCEMENT_RECIPE : WEAPON_ENHANCEMENT_RECIPE;
-    const targets = craftingTargets(state.player, kind);
-    const target = targets.find(entry => entry.key === targetKey);
-    if(!target){
-      log(state, "Choose an item to enhance first.");
-      return;
-    }
-
-    const nextItemId = enhancedItemId(target.itemId, 1);
-    if(!ITEM_INDEX.has(nextItemId)){
-      log(state, `No enhanced form is defined for ${target.item.name}.`);
-      return;
-    }
-
-    if(!craftingHasIngredients(state.player, recipe.ingredients)){
-      log(state, `Missing ingredients for ${recipe.name}. Need ${craftingIngredientSummary(recipe.ingredients)}.`);
-      return;
-    }
-
-    if(target.source === "inventory" && !removeItem(state.player, target.itemId, 1)){
-      log(state, `${target.item.name} is no longer in your inventory.`);
-      return;
-    }
-
-    if(!consumeCraftingIngredients(state.player, recipe.ingredients)){
-      if(target.source === "inventory") addItem(state.player, target.itemId, 1);
-      log(state, "Crafting failed because the ingredients could not be consumed.");
-      return;
-    }
-
-    if(target.source === "equipment") state.player.equipment[target.slotId] = nextItemId;
-    else addItem(state.player, nextItemId, 1);
-
-    log(state, `${target.item.name} is now ${getItem(nextItemId).name}.`);
-    save(state);
-    render();
   }
 
   /********************************************************************
@@ -1843,12 +1611,7 @@
     if(it.type === "weapon"){
       const dmg = it["Damage"] || it.Damage || "—";
       const dt = it["Damage type"] || it["Damage Type"] || it["damageType"] || "";
-      const attackBonus = Math.max(0, Number(it.attackBonus || 0));
-      const damageBonus = Math.max(0, Number(it.damageBonus || 0));
-      const extras = [];
-      if(attackBonus > 0) extras.push(`Hit +${attackBonus}`);
-      if(damageBonus > 0) extras.push(`Dmg +${damageBonus}`);
-      return `${dmg}${dt?" "+dt:""}${extras.length ? ` (${extras.join(", ")})` : ""}`;
+      return `${dmg}${dt?" "+dt:""}`;
     }
     if(it.type === "ammo"){
       const bundle = Math.max(1, Number(it.purchaseQty || 1));
@@ -1874,18 +1637,16 @@
   function itemTooltipHtml(it, player){
     const rows = [];
     const row = (k, v) => `<div class="trow"><div class="k">${escapeHtml(k)}</div><div class="v">${escapeHtml(v)}</div></div>`;
+    const usesProficiency = itemUsesProficiency(it);
+    const isProficient = usesProficiency ? isProficientWithItem(player, it) : true;
 
     rows.push(row("Type", it.type || "—"));
     if(it.category) rows.push(row("Category", it.category));
-    if(it.effectText) rows.push(row("Effect", it.effectText));
-    if(Number(it.enhancementLevel || 0) > 0) rows.push(row("Enhancement", `+${it.enhancementLevel}`));
-    if(it.baseItemId && ITEM_INDEX.has(it.baseItemId)) rows.push(row("Base item", getItem(it.baseItemId).name));
     if(it["Weapon type"]) rows.push(row("Weapon", it["Weapon type"]));
+    if(usesProficiency) rows.push(row("Training", isProficient ? "Proficient" : "Not proficient"));
 
     if(it.type === "weapon"){
       rows.push(row("Damage", `${(it.Damage||it["Damage"]||"—")} ${(it["Damage type"]||it.damageType||"")}`.trim()));
-      if(Number(it.attackBonus || 0) > 0) rows.push(row("Attack bonus", `+${Number(it.attackBonus || 0)}`));
-      if(Number(it.damageBonus || 0) > 0) rows.push(row("Damage bonus", `+${Number(it.damageBonus || 0)}`));
       const ammoItemId = ammoItemIdForWeapon(it);
       if(ammoItemId) rows.push(row("Ammo", getItem(ammoItemId).name));
       if(Array.isArray(it.properties) && it.properties.length) rows.push(row("Props", it.properties.map(formatPropertyLabel).join(", ")));
@@ -1915,8 +1676,19 @@
 
     return `
       <div style="font-weight:700; font-size:13px; margin-bottom:6px">${escapeHtml(it.name)}</div>
+      ${usesProficiency && !isProficient ? `<div class="badgeWrap" style="margin-bottom:8px"><span class="badge bad">not proficient</span></div>` : ``}
       ${rows.join("")}
     `;
+  }
+
+  function itemLinkHtml(it, player, label=null){
+    const text = label == null ? it.name : label;
+    const notProficient = itemUsesProficiency(it) && !isProficientWithItem(player, it);
+    return `<span class="itemLink${notProficient ? " notProficientText" : ""}" data-item="${it.id}">${escapeHtml(text)}</span>`;
+  }
+
+  function itemTextClass(it, player){
+    return itemUsesProficiency(it) && !isProficientWithItem(player, it) ? "notProficientText" : "";
   }
 
   function itemCategoryLabel(it){
@@ -2033,6 +1805,24 @@
     return false;
   }
 
+  function itemUsesProficiency(it){
+    if(!it) return false;
+    if(it.type === "weapon") return true;
+    if(it.type === "armor") return true;
+    if(it.type === "offhand") return true;
+    if(it.category === "shield") return true;
+    return false;
+  }
+
+  function isProficientWithItem(player, it){
+    if(!it || !itemUsesProficiency(it)) return true;
+    if(it.type === "weapon") return canUseWeaponCategory(player, it.category || "simple");
+    if(it.category === "shield") return canUseArmorCategory(player, "shields");
+    if(it.type === "offhand") return canUseArmorCategory(player, it.category || "shields");
+    if(it.type === "armor") return canUseArmorCategory(player, it.category || "unarmored");
+    return true;
+  }
+
   function saveTrainingValue(player, saveId){
     let best = 0;
     for(const cid of proficiencyClassIds(player)){
@@ -2072,6 +1862,7 @@
         saveToolsVisible: false,
         mobileActionsVisible: false,
         mapCameraMode: MAP_CAMERA_MODES.fixed,
+        logMode: GAME_CONFIG.defaultLogMode,
         mapViewByArea: {},
         inventorySort: { key:"name", dir:"asc" },
         shopBuySort: { key:"name", dir:"asc" },
@@ -2129,6 +1920,15 @@
     Stealth: "Stealth (DEX) — moving quietly and staying hidden; used to avoid ambush on short rest.",
     Survival: "Survival (WIS) — tracking, foraging, navigating; used for gathering herbs/hide."
   };
+
+  function skillTooltipHtml(skillId){
+    const text = SKILL_TOOLTIPS[skillId] || "";
+    if(!text) return "";
+    return `
+      <div style="font-weight:700; font-size:13px; margin-bottom:6px">${escapeHtml(skillId)}</div>
+      <div class="small muted" style="line-height:1.45">${escapeHtml(text)}</div>
+    `;
+  }
 
   function pointCost(score){
     if(score < 8 || score > 15) return Infinity;
@@ -2338,6 +2138,14 @@
     return Object.values(player.levels).reduce((a,b)=>a+b,0);
   }
 
+  function maxLevelCap(){
+    return Math.max(1, Number(GAME_CONFIG.maxLevel || 10));
+  }
+
+  function isMaxLevel(player){
+    return !!player && totalLevel(player) >= maxLevelCap();
+  }
+
   function mainClass(player){
     // highest level class; tie -> first
     let best = null;
@@ -2490,6 +2298,17 @@
     return renderAbilityBadgeList(ids, emptyText);
   }
 
+  function abilitySummaryText(ability){
+    return String(ability && ability.summary || "")
+      .replace(/\s*Cost\s+\d+\s+SP\.*/i, match => {
+        const tail = match.replace(/^\s*Cost\s+\d+\s+SP\.\s*/i, "");
+        return tail ? ` ${tail}` : "";
+      })
+      .replace(/\bLasts\s+\d+\s+rounds?\.\s*/gi, "")
+      .replace(/\s{2,}/g, " ")
+      .trim();
+  }
+
   function abilityTooltipHtml(abilityId){
     const ability = getAbility(abilityId);
     const rows = [];
@@ -2500,12 +2319,10 @@
     rows.push(row("Type", ability.kind || "—"));
     rows.push(row("Scope", (ability.contexts || []).join(", ") || "—"));
     if(Array.isArray(ability.tags) && ability.tags.length) rows.push(row("Tags", ability.tags.join(", ")));
-    if(Number(ability.costSp || 0) > 0) rows.push(row("Cost", `${ability.costSp} SP`));
-    if(ability.duration != null) rows.push(row("Duration", `${ability.duration} rounds`));
 
     return `
       <div style="font-weight:700; font-size:13px; margin-bottom:6px">${escapeHtml(ability.name)}</div>
-      <div class="small muted" style="margin-bottom:8px; line-height:1.45">${escapeHtml(ability.summary || "")}</div>
+      <div class="small muted" style="margin-bottom:8px; line-height:1.45">${escapeHtml(abilitySummaryText(ability))}</div>
       ${rows.join("")}
       ${Array.isArray(ability.details) && ability.details.length ? `<div class="small muted" style="margin-top:8px; line-height:1.45">${ability.details.map(line => `• ${escapeHtml(line)}`).join("<br/>")}</div>` : ""}
     `;
@@ -2664,23 +2481,51 @@
   }
 
   function normalizeStatusEffect(effect){
-    const modifiers = effect.modifiers || {};
+    const rawEffect = effect || {};
+    const rawStatusId = rawEffect.templateId || rawEffect.id;
+    const migratedEffect = rawStatusId === "brace_for_impact"
+      ? {
+          ...rawEffect,
+          id: "tree_stance",
+          templateId: "tree_stance",
+          name: "Tree Stance",
+          description: STATUS_EFFECT_TEMPLATES.tree_stance.description,
+          tags: ["Buff", "Stance"],
+          modifiers: {
+            ...(rawEffect.modifiers || {}),
+            resistances: {
+              bludgeoning: 3,
+              piercing: 3,
+              slashing: 3,
+              ...((rawEffect.modifiers || {}).resistances || {})
+            }
+          }
+        }
+      : rawStatusId === "marked_prey"
+        ? {
+            ...rawEffect,
+            name: STATUS_EFFECT_TEMPLATES.marked_prey.name,
+            description: STATUS_EFFECT_TEMPLATES.marked_prey.description,
+            tags: STATUS_EFFECT_TEMPLATES.marked_prey.tags
+          }
+        : rawEffect;
+    const modifiers = migratedEffect.modifiers || {};
     return {
-      id: effect.id || effect.templateId,
-      templateId: effect.templateId || effect.id,
-      name: effect.name || effect.id || "Effect",
-      description: effect.description || "",
-      duration: effect.duration == null ? null : Math.max(0, Number(effect.duration || 0)),
-      maxDuration: effect.maxDuration == null ? (effect.duration == null ? null : Math.max(0, Number(effect.duration || 0))) : Math.max(0, Number(effect.maxDuration || 0)),
-      durationMode: effect.durationMode === "move" ? "move" : "turn",
-      durationUnit: effect.durationUnit || (effect.durationMode === "move" ? "movements" : "turns"),
-      tags: Array.isArray(effect.tags) ? [...effect.tags] : [],
-      disabledAbilityTags: Array.isArray(effect.disabledAbilityTags) ? effect.disabledAbilityTags.map(normalizeTagId) : [],
-      ongoingDamage: Math.max(0, Number(effect.ongoingDamage || 0)),
-      ongoingDamageType: String(effect.ongoingDamageType || "").trim().toLowerCase(),
-      consumeOnAttack: !!effect.consumeOnAttack,
-      expiresOnDown: effect.expiresOnDown !== false,
-      justApplied: !!effect.justApplied,
+      id: migratedEffect.id || migratedEffect.templateId,
+      templateId: migratedEffect.templateId || migratedEffect.id,
+      name: migratedEffect.name || migratedEffect.id || "Effect",
+      description: migratedEffect.description || "",
+      duration: migratedEffect.duration == null ? null : Math.max(0, Number(migratedEffect.duration || 0)),
+      maxDuration: migratedEffect.maxDuration == null ? (migratedEffect.duration == null ? null : Math.max(0, Number(migratedEffect.duration || 0))) : Math.max(0, Number(migratedEffect.maxDuration || 0)),
+      durationMode: migratedEffect.durationMode === "move" ? "move" : "turn",
+      durationUnit: migratedEffect.durationUnit || (migratedEffect.durationMode === "move" ? "movements" : "turns"),
+      tags: Array.isArray(migratedEffect.tags) ? [...migratedEffect.tags] : [],
+      disabledAbilityTags: Array.isArray(migratedEffect.disabledAbilityTags) ? migratedEffect.disabledAbilityTags.map(normalizeTagId) : [],
+      ongoingDamage: Math.max(0, Number(migratedEffect.ongoingDamage || 0)),
+      ongoingDamageType: String(migratedEffect.ongoingDamageType || "").trim().toLowerCase(),
+      consumeOnAttack: !!migratedEffect.consumeOnAttack,
+      expiresOnDown: migratedEffect.expiresOnDown !== false,
+      justApplied: !!migratedEffect.justApplied,
       modifiers: {
         acModifier: Number.isFinite(Number(modifiers.acModifier || 0)) ? Number(modifiers.acModifier || 0) : 0,
         attackRollModifier: Number.isFinite(Number(modifiers.attackRollModifier || 0)) ? Number(modifiers.attackRollModifier || 0) : 0,
@@ -2983,8 +2828,6 @@
 
     const usesDex = isRanged || props.includes("finesse");
     const abil = usesDex ? Math.max(dex, str) : str;
-    const weaponAttackBonus = Math.max(0, Number(weapon.attackBonus || 0));
-    const weaponDamageBonus = Math.max(0, Number(weapon.damageBonus || 0));
     let damageExpr = weapon["Damage"];
     if(hasMartialArts && weapon.category === "simple"){
       damageExpr = upgradeDamageExprMinimum(damageExpr, 6);
@@ -2995,14 +2838,12 @@
       sourceWeapon: weapon,
       slot: slotLabel,
       weaponName: weapon.name,
-      attackBonus: abil + statusAttackModifier + weaponAttackBonus,
-      baseAttackBonus: abil + weaponAttackBonus,
+      attackBonus: abil + statusAttackModifier,
+      baseAttackBonus: abil,
       statusAttackModifier,
-      weaponAttackBonus,
       attackAbilityMod: abil,
       damageExpr,
       damageType: weapon["Damage type"],
-      weaponDamageBonus,
       tags: props,
       isMeleeWeapon: weapon["Weapon type"] === "melee",
       isAgileWeapon: props.includes("agile"),
@@ -3314,6 +3155,10 @@
     return DUNGEON_LINKS.filter(link => link.sourceAreaId === areaId);
   }
 
+  function dungeonEntranceLinkForArea(areaId){
+    return DUNGEON_LINKS.find(link => link.targetAreaId === areaId) || null;
+  }
+
   function areaTileSeed(areaState, x, y){
     const seed = Number(areaState && areaState.seed || 0) >>> 0;
     return (((seed ^ (((x + 1) * 374761393) >>> 0)) >>> 0) ^ (((y + 1) * 668265263) >>> 0)) >>> 0;
@@ -3358,6 +3203,9 @@
     cloned.type = cloned.type || "empty";
     cloned.content = cloned.content == null ? null : cloned.content;
     cloned.home = !!cloned.home;
+    cloned.arrivalX = Number.isFinite(Number(cloned.arrivalX)) ? Number(cloned.arrivalX) : null;
+    cloned.arrivalY = Number.isFinite(Number(cloned.arrivalY)) ? Number(cloned.arrivalY) : null;
+    cloned.linkedDungeonAreaId = cloned.linkedDungeonAreaId || null;
     return cloned;
   }
 
@@ -3408,6 +3256,9 @@
         tile.type = tile.type || "empty";
         tile.content = tile.content == null ? null : tile.content;
         tile.home = false;
+        tile.arrivalX = null;
+        tile.arrivalY = null;
+        tile.linkedDungeonAreaId = null;
         if(!tile.terrain) tile.terrain = makeRandomAreaTile(areaState, areaDef, x, y).terrain;
         if(tile.type === "dungeon"){
           tile.type = "empty";
@@ -3420,9 +3271,13 @@
     const hx = Math.floor(size / 2);
     const hy = Math.floor(size / 2);
     const homeTile = areaState.tiles[hy][hx];
+    const entranceLink = dungeonEntranceLinkForArea(areaDef.id);
     homeTile.home = true;
-    homeTile.type = "empty";
-    homeTile.content = null;
+    homeTile.type = entranceLink ? "dungeon" : "empty";
+    homeTile.content = entranceLink ? entranceLink.sourceAreaId : null;
+    homeTile.arrivalX = entranceLink ? entranceLink.x : null;
+    homeTile.arrivalY = entranceLink ? entranceLink.y : null;
+    homeTile.linkedDungeonAreaId = entranceLink ? areaDef.id : null;
     homeTile.resolved = true;
     homeTile.revealed = true;
 
@@ -3432,6 +3287,9 @@
       tile.home = false;
       tile.type = "dungeon";
       tile.content = link.targetAreaId;
+      tile.arrivalX = null;
+      tile.arrivalY = null;
+      tile.linkedDungeonAreaId = link.targetAreaId;
       tile.resolved = false;
       if(link.terrain) tile.terrain = link.terrain;
     }
@@ -3485,22 +3343,25 @@
     applySpecialTiles(areaState, areaDef);
   }
 
-  function moveAreaPlayerToHomeTile(areaState, areaDef){
+  function moveAreaPlayerToTile(areaState, areaDef, x, y){
     if(!areaState) return;
     normalizeAreaState(areaState, areaDef);
     const size = areaState.size || areaDef.size || 9;
-    const hx = Math.floor(size / 2);
-    const hy = Math.floor(size / 2);
-    areaState.px = hx;
-    areaState.py = hy;
-    if(areaState.tiles && areaState.tiles[hy] && areaState.tiles[hy][hx]){
-      const tile = areaState.tiles[hy][hx];
-      tile.home = true;
-      tile.type = "empty";
-      tile.content = null;
-      tile.resolved = true;
+    const tx = clamp(Number.isFinite(Number(x)) ? Number(x) : Math.floor(size / 2), 0, size - 1);
+    const ty = clamp(Number.isFinite(Number(y)) ? Number(y) : Math.floor(size / 2), 0, size - 1);
+    areaState.px = tx;
+    areaState.py = ty;
+    if(areaState.tiles && areaState.tiles[ty] && areaState.tiles[ty][tx]){
+      const tile = areaState.tiles[ty][tx];
       tile.revealed = true;
+      if(tile.home) tile.resolved = true;
     }
+  }
+
+  function moveAreaPlayerToHomeTile(areaState, areaDef){
+    if(!areaState) return;
+    const size = areaState.size || areaDef.size || 9;
+    moveAreaPlayerToTile(areaState, areaDef, Math.floor(size / 2), Math.floor(size / 2));
   }
 
   function refreshAllMapEncounters(state){
@@ -3543,6 +3404,7 @@
 
   function tileSymbol(tile){
     if(!tile.revealed) return MAP_ICONS.unknown;
+    if(tile.home && tile.type === "dungeon") return MAP_ICONS.dungeon;
     if(tile.home) return MAP_ICONS.home;
     if(tile.type === "dungeon") return MAP_ICONS.dungeon;
     if(tile.type === "monster" && !tile.resolved) return MAP_ICONS.monster;
@@ -3615,16 +3477,17 @@
     const availableWidth = Math.max(1, Math.floor(mapViewportEl.clientWidth || mapPaneEl.clientWidth || 0));
     const viewportTop = mapViewportEl.getBoundingClientRect().top;
     const availableHeight = Math.max(1, Math.floor(window.innerHeight - viewportTop - MAP_VIEWPORT_MARGIN));
+    const maxVisible = Math.max(1, Number(MAP_MAX_VISIBLE_TILES || 9));
 
-    let cols = Math.min(size, maxTilesThatFit(availableWidth, paddingX, gap, bounds.min));
-    cols = clamp(cols, 1, size);
+    let cols = Math.min(size, maxVisible, maxTilesThatFit(availableWidth, paddingX, gap, bounds.min));
+    cols = clamp(cols, 1, Math.min(size, maxVisible));
 
     const widthInnerSpace = Math.max(0, availableWidth - paddingX - Math.max(0, cols - 1) * gap);
     const maxWidthCellSize = widthInnerSpace > 0 ? (widthInnerSpace / cols) : 1;
     const cellSize = Math.max(1, Math.floor(maxWidthCellSize * MAP_WIDTH_SCALE_RATIO));
 
-    let rows = Math.min(size, maxTilesThatFit(availableHeight, paddingY, gap, cellSize));
-    rows = clamp(rows, 1, size);
+    let rows = Math.min(size, maxVisible, maxTilesThatFit(availableHeight, paddingY, gap, cellSize));
+    rows = clamp(rows, 1, Math.min(size, maxVisible));
 
     return {
       cols,
@@ -3778,13 +3641,19 @@
     const tile = currentTile(state);
     if(!tile || tile.type !== "dungeon" || !tile.content) return null;
     try{
-      return getArea(tile.content);
+      return {
+        area: getArea(tile.content),
+        arrivalX: Number.isFinite(Number(tile.arrivalX)) ? Number(tile.arrivalX) : null,
+        arrivalY: Number.isFinite(Number(tile.arrivalY)) ? Number(tile.arrivalY) : null,
+        linkedDungeonAreaId: tile.linkedDungeonAreaId || null
+      };
     }catch(_){
       return null;
     }
   }
 
-  function dungeonEnterLabel(area){
+  function dungeonEnterLabel(destination){
+    const area = destination && destination.area ? destination.area : destination;
     return area ? `Enter ${area.name} (Level ${area.level})` : "Enter Dungeon";
   }
 
@@ -3807,6 +3676,8 @@
     const opts = options && typeof options === "object" ? options : {};
     const viaDungeon = !!opts.viaDungeon;
     const bypassTravelRequirement = !!opts.bypassTravelRequirement;
+    const arrivalX = Number.isFinite(Number(opts.arrivalX)) ? Number(opts.arrivalX) : null;
+    const arrivalY = Number.isFinite(Number(opts.arrivalY)) ? Number(opts.arrivalY) : null;
 
     if(state.combat || hasBlockingCenterOverlay(state)) return;
     if(targetAreaId === state.world.areaId) return;
@@ -3826,7 +3697,8 @@
     ensureAreaGenerated(state, targetAreaId);
     if(targetArea.map){
       const areaState = state.world.areas[targetAreaId];
-      moveAreaPlayerToHomeTile(areaState, targetArea);
+      if(arrivalX != null && arrivalY != null) moveAreaPlayerToTile(areaState, targetArea, arrivalX, arrivalY);
+      else moveAreaPlayerToHomeTile(areaState, targetArea);
       state.ui.selectedTile = { x: areaState.px, y: areaState.py };
     }else{
       state.ui.selectedTile = null;
@@ -3909,10 +3781,10 @@
     }
     state.player.sp.current -= 1;
 
-    // Simple skill check using a resource-specific gathering skill.
+    // Simple skill check using Survival or Crafting depending on resource
     const resId = tile.content;
     const res = getItem(resId);
-    const skill = (res && res.gatherSkill) ? res.gatherSkill : ((resId === "ore") ? "Crafting" : "Survival");
+    const skill = (resId === "ore") ? "Crafting" : "Survival";
     const check = rollD20() + skillTotal(state.player, skill);
     const dc = 12 + getArea(state.world.areaId).level * 2;
     let qty = (check >= dc + 10) ? rollInt(2,3) : (check >= dc) ? rollInt(1,2) : 1;
@@ -4113,21 +3985,20 @@
 
   function handlePlayerDefeat(state){
     clearTimedStatusEffectsOnDown(state);
-    const coinLoss = Math.min(Math.max(0, Number(state.player.moneyCp || 0)), 150);
-    log(state, "You fall unconscious! You wake up in town, lighter on coin.");
+    log(state, "TESTING MODE, DEATH PENALTIES WILL BE RE-IMPLEMENTED LATER PROBABLY");
     state.world.areaId = "town";
     state.combat = null;
     state.tab = "explore";
-    state.player.hp.current = Math.max(1, Math.floor(state.player.hp.max * 0.5));
-    state.player.sp.current = Math.max(1, Math.floor(state.player.sp.max * 0.5));
-    state.player.moneyCp = Math.max(0, state.player.moneyCp - coinLoss);
+    state.player.hp.current = state.player.hp.max;
+    state.player.sp.current = state.player.sp.max;
     setCombatNotice(state, {
-      kind: "bad",
-      title: "Defeat",
-      summary: "You were beaten and dragged back to Astaria.",
-      sectionTitle: "Losses",
+      kind: "neutral",
+      title: "YOU DIED.",
+      summary: "TESTING MODE, DEATH PENALTIES WILL BE RE-IMPLEMENTED LATER PROBABLY",
+      sectionTitle: "Outcome",
       items: [
-        `${formatCoins(coinLoss)} lost`,
+        "No death penalties were applied.",
+        "Returned to Astaria.",
         `Recovered to ${state.player.hp.current}/${state.player.hp.max} HP`,
         `Recovered to ${state.player.sp.current}/${state.player.sp.max} SP`
       ]
@@ -4247,16 +4118,16 @@
     if(hit){
       const base = rollDice(ap.damageExpr);
       const dmgMod = Number(ap.attackAbilityMod || 0);
-      const weaponBonusDamage = Number(ap.weaponDamageBonus || 0);
       const meleeBonus = activeMeleeDamageBonus(state.player, ap);
       const overpowerBonus = hasAbility(state.player, "skill_athletics_overpower") && ap.isMeleeWeapon && (hasStatusEffect(enemy, "off_guard") || hasStatusEffect(enemy, "prone")) ? 2 : 0;
-      const bonusDamage = Number(extraDamageOnHit || 0) + overpowerBonus;
-      dmg = base + dmgMod + weaponBonusDamage + meleeBonus + bonusDamage;
-      if(outcome === "crit") dmg = (base * 2) + (dmgMod * 2) + (weaponBonusDamage * 2) + (meleeBonus * 2) + (bonusDamage * 2);
+      const hunterMarkBonus = hasStatusEffect(enemy, "marked_prey") ? rollDice("1d4") : 0;
+      const bonusDamage = Number(extraDamageOnHit || 0) + overpowerBonus + hunterMarkBonus;
+      dmg = base + dmgMod + meleeBonus + bonusDamage;
+      if(outcome === "crit") dmg = (base * 2) + (dmgMod * 2) + (meleeBonus * 2) + (bonusDamage * 2);
 
-      if(weaponBonusDamage > 0) extras.push(`Enhancement ${fmtSigned(weaponBonusDamage)}`);
       if(meleeBonus > 0) extras.push(`Enrage ${fmtSigned(meleeBonus)}`);
       if(overpowerBonus > 0) extras.push(`Overpower ${fmtSigned(overpowerBonus)}`);
+      if(hunterMarkBonus > 0) extras.push(`Hunter's Mark +${hunterMarkBonus}${outcome === "crit" ? " (doubled on crit)" : ""}`);
       if(Number(extraDamageOnHit || 0) !== 0) extras.push(`Ability damage ${fmtSigned(Number(extraDamageOnHit || 0))}`);
 
       if(hasAbility(state.player, "sneak_attack") && ap.isAgileWeapon){
@@ -4330,7 +4201,7 @@
       if(offHand){
         const penalizedAttack = {
           ...offHand,
-          attackBonus: Math.max(1, Number(offHand.attackBonus || 0) - 5)
+          attackBonus: Number(offHand.attackBonus || 0) - 4
         };
         const offResult = resolvePlayerAttack(state, {
           attack: penalizedAttack,
@@ -4490,33 +4361,21 @@
     render();
   }
 
-  function useConsumable(state, itemId){
+  function usePotion(state){
     if(state.combat && state.combat.turn !== "player"){
       log(state, "It is not your turn.");
       return;
     }
-
-    const item = ITEM_INDEX.get(itemId);
-    if(!item || item.type !== "consumable" || typeof item.use !== "function"){
-      log(state, "That item cannot be used right now.");
+    if(!hasItem(state.player, "potion_healing", 1)){
+      log(state, "You have no healing potions.");
       return;
     }
-
-    if(!hasItem(state.player, itemId, 1)){
-      log(state, `You do not have ${item.name}.`);
-      return;
-    }
-
-    removeItem(state.player, itemId, 1);
-    item.use(state);
+    removeItem(state.player, "potion_healing", 1);
+    getItem("potion_healing").use(state);
     advanceStatusEffectsAfterAction(state);
     if(state.combat) enemyTurn(state);
     else save(state);
     render();
-  }
-
-  function usePotion(state){
-    useConsumable(state, "potion_healing");
   }
 
   function applyEnrageStatus(state, sourceText="You enter an Enrage for 10 rounds."){
@@ -4601,16 +4460,10 @@
   }
 
   function useGuardStance(state){
-    const check = canUseActiveAbility(state, "guard_stance");
-    if(!check.ok){
-      log(state, check.reason);
-      return;
-    }
-
-    spendAbilitySp(state, "guard_stance");
-    addOrRefreshStatusEffect(state.player, createStatusEffect("guarded"));
-    log(state, "You enter a guarded stance and gain Guarded for 1 round.");
-    finishPlayerAbilityUse(state);
+    useAttackAbility(state, "guard_stance", {
+      attackBonusModifier: -2,
+      extraDamageOnHit: 4
+    });
   }
 
   function useFeintStrike(state){
@@ -4683,16 +4536,15 @@
   }
 
   function useOpenHand(state){
-    useCheckAbilityAgainstEnemyDc(state, "open_hand", {
-      checkLabel: "Strike",
-      getBonus: st => {
-        const ap = attackProfile(st.player);
-        return ap ? ap.attackBonus : 0;
-      },
-      dcId: "fort",
-      statusId: "off_guard",
-      successText: `${state.combat.enemy.name} becomes Off-Guard for 1 round.`
-    });
+    const check = canUseActiveAbility(state, "open_hand");
+    if(!check.ok){
+      log(state, check.reason);
+      return;
+    }
+    spendAbilitySp(state, "open_hand");
+    addOrRefreshStatusEffect(state.player, createStatusEffect("tree_stance"));
+    log(state, "You root into Tree Stance for 10 rounds (resistance 3 to bludgeoning, piercing, and slashing).");
+    finishPlayerAbilityUse(state);
   }
 
   function useRiverStance(state){
@@ -4748,8 +4600,9 @@
       checkLabel: "Survival",
       getBonus: st => skillTotal(st.player, "Survival"),
       dcId: "will",
-      statusId: "off_guard",
-      successText: `${state.combat.enemy.name} becomes Off-Guard for 1 round.`
+      statusId: "marked_prey",
+      duration: 5,
+      successText: `${state.combat.enemy.name} is marked for 5 rounds. Your attacks against it deal +1d4 damage while the mark lasts.`
     });
   }
 
@@ -5040,11 +4893,6 @@
     return !!(it && it.type === "weapon" && Array.isArray(it.properties) && it.properties.includes("agile"));
   }
 
-  function equipmentSlotLabel(slotId){
-    const slot = EQUIP_SLOTS.find(entry => entry.id === slotId);
-    return slot ? slot.label : formatDamageTypeLabel(slotId || "slot");
-  }
-
   const EQUIP_SLOTS = [
     { id:"mainHand", label:"Main hand", filter: (it)=>it.type==="weapon" },
     // Off-hand can take shields/offhand items, or an agile one-handed weapon.
@@ -5190,12 +5038,15 @@
    * Leveling
    ********************************************************************/
   function xpToNextLevel(player){
+    if(!player) return null;
     const lvl = totalLevel(player);
+    if(lvl >= maxLevelCap()) return null;
     return 120 + (lvl-1)*80;
   }
 
   function canLevelUp(player){
-    return player.xp >= xpToNextLevel(player);
+    const needed = xpToNextLevel(player);
+    return needed != null && player.xp >= needed;
   }
 
   function classRequirementEntries(classId){
@@ -5590,6 +5441,18 @@
     });
   }
 
+  function wireSkillTooltips(scope){
+    wireResolvedTooltips(scope, "[data-skill-tip]", el => skillTooltipHtml(el.getAttribute("data-skill-tip") || ""));
+  }
+
+  function wireTextTooltips(scope){
+    wireResolvedTooltips(scope, "[data-tooltip]", el => {
+      const message = el.getAttribute("data-tooltip") || "";
+      if(!message) return "";
+      return `<div class="small muted" style="line-height:1.45">${escapeHtml(message)}</div>`;
+    });
+  }
+
   function toast(msg, kind="info"){
     ensureOverlays();
     if(!$toast) return;
@@ -5665,6 +5528,7 @@
     if(typeof st.ui.saveToolsVisible !== "boolean") st.ui.saveToolsVisible = false;
     if(typeof st.ui.mobileActionsVisible !== "boolean") st.ui.mobileActionsVisible = false;
     if(!Object.values(MAP_CAMERA_MODES).includes(st.ui.mapCameraMode)) st.ui.mapCameraMode = MAP_CAMERA_MODES.fixed;
+    if(!Object.values(LOG_MODES).includes(st.ui.logMode)) st.ui.logMode = GAME_CONFIG.defaultLogMode;
     if(!st.ui.mapViewByArea || typeof st.ui.mapViewByArea !== "object") st.ui.mapViewByArea = {};
     if(!st.ui.combatNotice || typeof st.ui.combatNotice !== "object") st.ui.combatNotice = null;
     if(!st.ui.randomEventPrompt || typeof st.ui.randomEventPrompt !== "object") st.ui.randomEventPrompt = null;
@@ -5672,7 +5536,7 @@
     st.ui.shopBuySort = normalizeSortConfig(st.ui.shopBuySort, "name");
     st.ui.shopSellSort = normalizeSortConfig(st.ui.shopSellSort, "name");
 
-    const validTabs = new Set(["explore", "combat", "character", "inventory", "shop", "crafting", "log"]);
+    const validTabs = new Set(["explore", "combat", "character", "inventory", "shop", "log", "settings"]);
     if(!validTabs.has(st.tab)) st.tab = "explore";
 
     // Core containers
@@ -5755,8 +5619,28 @@
     }
   }
 
+  function captureWindowScroll(){
+    return {
+      x: Math.max(0, Number(window.scrollX || window.pageXOffset || 0)),
+      y: Math.max(0, Number(window.scrollY || window.pageYOffset || 0))
+    };
+  }
+
+  function restoreWindowScroll(pos){
+    if(!pos) return;
+    const left = Math.max(0, Number(pos.x || 0));
+    const top = Math.max(0, Number(pos.y || 0));
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        window.scrollTo(left, top);
+      });
+    });
+  }
+
   function render(){
+    const scrollPos = captureWindowScroll();
     clearExploreViewportSync();
+    hideTooltip();
     if(!state || !state.player || state.tab !== "explore") window.onkeydown = null;
 
     if(!state.player){
@@ -5764,6 +5648,8 @@
     }else{
       renderGame();
     }
+
+    restoreWindowScroll(scrollPos);
 
     try{
       save(state);
@@ -5773,6 +5659,8 @@
   }
 
   function renderCharacterCreator(){
+    const scrollPos = captureWindowScroll();
+    hideTooltip();
     const stats = state._draftStats || {STR:8, DEX:8, CON:8, INT:8, WIS:8, CHA:8};
     const rawDraft = state._draft || { name:"", raceId:"human", classId:"Fighter", abilityId: normalizeOptionalAbilityChoiceForClass("Fighter", null) };
     const classId = CLASSES[rawDraft.classId] ? rawDraft.classId : "Fighter";
@@ -5896,7 +5784,7 @@
                       <table class="table">
                         <thead>
                           <tr>
-                            <th>Skill</th><th>Stat</th><th>Base</th><th>Prof</th><th>Total</th><th>Train</th>
+                            <th>Skill</th><th>Base</th><th>Prof</th><th>Total</th><th>Train</th>
                           </tr>
                         </thead>
                         <tbody id="cc_skill_list"></tbody>
@@ -5936,7 +5824,6 @@
       return `
         <div class="pointBuyRow">
           <div style="display:flex; align-items:center">
-            <span class="mono statHint" data-stat-tip="${stat}" style="width:48px">${stat}</span>
             <span class="badge statHint" data-stat-tip="${stat}">${fullStatName(stat)}</span>
           </div>
           <div class="pbControls">
@@ -5978,8 +5865,7 @@
 
       return `
         <tr>
-          <td title="${escapeHtml(SKILL_TOOLTIPS[sk.id] || "")}">${sk.id}</td>
-          <td class="mono">${sk.stat}</td>
+          <td class="skillHint" data-skill-tip="${sk.id}">${sk.id}</td>
           <td class="mono">${fmtSigned(base)}</td>
           <td class="mono">${proficiency}</td>
           <td class="mono">${fmtSigned(total)}</td>
@@ -6068,6 +5954,9 @@
 
     wireAbilityTooltips($app);
     wireStatTooltips($app);
+    wireSkillTooltips($app);
+    wireTextTooltips($app);
+    restoreWindowScroll(scrollPos);
 
     document.getElementById("cc_start").addEventListener("click", () => {
       const currentDraft = state._draft || draft;
@@ -6154,10 +6043,8 @@
             <div class="abilityChoiceTitle">
               ${abilityBadgeHtml(startingAbilityId)}
               <span class="badge">${escapeHtml(formatDamageTypeLabel(startingAbility.kind || "ability"))}</span>
-              ${Number(startingAbility.costSp || 0) > 0 ? `<span class="badge">${startingAbility.costSp} SP</span>` : ``}
-              ${startingAbility.duration != null ? `<span class="badge">${startingAbility.duration} round${startingAbility.duration === 1 ? "" : "s"}</span>` : ``}
             </div>
-            <div class="small muted" style="line-height:1.45">${escapeHtml(startingAbility.summary || "")}</div>
+            <div class="small muted" style="line-height:1.45">${escapeHtml(abilitySummaryText(startingAbility))}</div>
           </div>
         </div>
       </div>
@@ -6177,10 +6064,8 @@
                   <div class="abilityChoiceTitle">
                     ${abilityBadgeHtml(id)}
                     <span class="badge">${escapeHtml(formatDamageTypeLabel(ability.kind || "ability"))}</span>
-                    ${Number(ability.costSp || 0) > 0 ? `<span class="badge">${ability.costSp} SP</span>` : ``}
-                    ${ability.duration != null ? `<span class="badge">${ability.duration} round${ability.duration === 1 ? "" : "s"}</span>` : ``}
                   </div>
-                  <div class="small muted" style="line-height:1.45">${escapeHtml(ability.summary || "")}</div>
+                  <div class="small muted" style="line-height:1.45">${escapeHtml(abilitySummaryText(ability))}</div>
                 </div>
               </label>
             `;
@@ -6213,7 +6098,7 @@
           ${tabButton("character","Character")}
           ${tabButton("inventory","Inventory")}
           ${tabButton("shop","Shop", (state.world.areaId!=="town"))}
-          ${tabButton("crafting","Crafting", (state.world.areaId!=="town"))}
+          ${tabButton("settings","Settings")}
         </div>
         <div class="sidebarDivider"></div>
         <div class="saveToolsWrap">
@@ -6244,7 +6129,6 @@
       return `
         <div class="pointBuyRow">
           <div style="display:flex; align-items:center; gap:8px">
-            <span class="mono statHint" data-stat-tip="${stat}" style="width:40px">${stat}</span>
             <span class="badge statHint" data-stat-tip="${stat}">${fullStatName(stat)}</span>
           </div>
           <div class="pbControls">
@@ -6267,8 +6151,7 @@
       const canInc = preview.skillTrainRemaining > 0 && (proficiency + pending) < cap;
       return `
         <tr>
-          <td title="${escapeHtml(SKILL_TOOLTIPS[sk.id] || "")}">${sk.id}</td>
-          <td class="mono">${sk.stat}</td>
+          <td class="skillHint" data-skill-tip="${sk.id}">${sk.id}</td>
           <td class="mono">${fmtSigned(base)}</td>
           <td class="mono">${proficiency}</td>
           <td class="mono">${fmtSigned(total)}</td>
@@ -6342,9 +6225,8 @@
                               <div class="abilityChoiceTitle">
                                 ${abilityBadgeHtml(id)}
                                 <span class="badge">${escapeHtml(formatDamageTypeLabel(ability.kind || "ability"))}</span>
-                                ${Number(ability.costSp || 0) > 0 ? `<span class="badge">${ability.costSp} SP</span>` : ``}
                               </div>
-                              <div class="small muted" style="line-height:1.45">${escapeHtml(ability.summary || "")}</div>
+                              <div class="small muted" style="line-height:1.45">${escapeHtml(abilitySummaryText(ability))}</div>
                             </div>
                           </label>
                         `;
@@ -6376,7 +6258,7 @@
                                 <span class="badge">${escapeHtml(ability.skillId || "Skill")}</span>
                                 <span class="badge">Level ${preview.skillTier}</span>
                               </div>
-                              <div class="small muted" style="line-height:1.45">${escapeHtml(ability.summary || "")}</div>
+                              <div class="small muted" style="line-height:1.45">${escapeHtml(abilitySummaryText(ability))}</div>
                             </div>
                           </label>
                         `;
@@ -6411,7 +6293,7 @@
                   <table class="table">
                     <thead>
                       <tr>
-                        <th>Skill</th><th>Stat</th><th>Base</th><th>Prof/th><th>Total</th><th>Train</th>
+                        <th>Skill</th><th>Base</th><th>Prof</th><th>Total</th><th>Train</th>
                       </tr>
                     </thead>
                     <tbody>${skillRows}</tbody>
@@ -6673,21 +6555,21 @@
             <div class="kv"><div class="k">Class levels</div><div class="v">${renderLevels(player)}</div></div>
             <div class="kv"><div class="k">Armor Class</div><div class="v">${ac}</div></div>
             <div class="kv"><div class="k">Attack</div><div class="v">${ap.weaponName} <span class="muted">(${fmtSigned(ap.attackBonus)})</span></div></div>
-            <div class="kv"><div class="k">Damage</div><div class="v">${ap.damageExpr}${Number(ap.weaponDamageBonus || 0) ? fmtSigned(ap.weaponDamageBonus) : ""} ${ap.damageType}</div></div>
+            <div class="kv"><div class="k">Damage</div><div class="v">${ap.damageExpr} ${ap.damageType}</div></div>
             <div class="kv"><div class="k">Fort / Ref / Will</div><div class="v">${fmtSigned(saveTotal(player,"fort"))} / ${fmtSigned(saveTotal(player,"reflex"))} / ${fmtSigned(saveTotal(player,"will"))}</div></div>
             <div class="kv"><div class="k">Inventory</div><div class="v">${invSlots.used}/${invSlots.max} slots${invSlots.bonus ? ` <span class="muted">(+${invSlots.bonus} carry)</span>` : ""}</div></div>
             <div class="kv" style="align-items:flex-start"><div class="k">Abilities</div><div class="v" style="max-width:220px">${renderPlayerAbilityBadgeList(player, { emptyText:"None" })}</div></div>
             <div class="kv" style="align-items:flex-start"><div class="k">Status Effects</div><div class="v" style="max-width:220px">${renderStatusEffectBadges(player, "None")}</div></div>
             <div class="kv" style="align-items:flex-start"><div class="k">Resistances</div><div class="v" style="max-width:220px">${renderResistanceBadgeList(player, "None")}</div></div>
-            <div class="kv"><div class="k">XP</div><div class="v">${player.xp} / ${xpToNextLevel(player)} ${canLevelUp(player) ? '<span class="badge warn">Level Up Ready</span>' : ''}</div></div>
-            ${canLevelUp(player) ? `<div class="small muted" style="margin-top:10px; line-height:1.45">You have enough experience to level up. Open the Character tab to choose your class advance, spend this level's rewards, and confirm the change.</div>` : ``}
+            <div class="kv"><div class="k">XP</div><div class="v">${isMaxLevel(player) ? `${player.xp} <span class="badge">Max Level ${maxLevelCap()}</span>` : `${player.xp} / ${xpToNextLevel(player)} ${canLevelUp(player) ? '<span class="badge warn">Level Up Ready</span>' : ''}`}</div></div>
+            ${isMaxLevel(player) ? `<div class="small muted" style="margin-top:10px; line-height:1.45">You have reached the current level cap of ${maxLevelCap()}. Increase <span class="mono">GAME_CONFIG.maxLevel</span> to raise it later.</div>` : canLevelUp(player) ? `<div class="small muted" style="margin-top:10px; line-height:1.45">You have enough experience to level up. Open the Character tab to choose your class advance, spend this level's rewards, and confirm the change.</div>` : ``}
           </div>
         </div>
       </div>
 
       <div class="logfooter">
         <div class="panel">
-          <header><h2>Log</h2><div class="hint">last events</div></header>
+          <header><h2>Log</h2><div class="hint">${currentLogMode(state) === LOG_MODES.detail ? "detail hover enabled" : "last events"}</div></header>
           <div class="body" id="log_body"></div>
         </div>
       </div>
@@ -6774,6 +6656,8 @@
     wireAbilityTooltips($app);
     wireStatTooltips($app);
     wireStatusTooltips($app);
+    wireSkillTooltips($app);
+    wireTextTooltips($app);
 
     document.querySelectorAll('[data-ui-action="dismiss-combat-notice"]').forEach(btn => {
       btn.addEventListener("click", () => dismissCombatNotice(state));
@@ -6787,7 +6671,7 @@
 
     // Render log footer
     const logBody = document.getElementById("log_body");
-    logBody.textContent = state.log.slice(-18).reverse().join("\n");
+    logBody.innerHTML = renderLogEntries(state.log, { limit:18 });
   }
 
   function tabButton(id, label, disabled=false){
@@ -6839,16 +6723,16 @@
         body.innerHTML = renderShopTab();
         wireShopTab();
         break;
-      case "crafting":
-        title.textContent = "Crafting";
-        hint.textContent = state.world.areaId==="town" ? "Enhance gear and brew potions from gathered materials." : "You need to be in town to craft.";
-        body.innerHTML = renderCraftingTab();
-        wireCraftingTab();
-        break;
       case "log":
         title.textContent = "Log";
-        hint.textContent = "Full event log.";
-        body.innerHTML = `<pre style="margin:0; font-family:var(--mono); font-size:12px; line-height:1.35; white-space:pre-wrap">${escapeHtml(state.log.slice().reverse().join("\n"))}</pre>`;
+        hint.textContent = currentLogMode(state) === LOG_MODES.detail ? "Full event log with hover breakdowns for rolls and modifiers." : "Full event log.";
+        body.innerHTML = renderLogEntries(state.log);
+        break;
+      case "settings":
+        title.textContent = "Settings";
+        hint.textContent = "Display and UI options.";
+        body.innerHTML = renderSettingsTab();
+        wireSettingsTab();
         break;
       default:
         state.tab = "explore";
@@ -6866,7 +6750,7 @@
       const ability = getAbility(id);
       const availability = canUseActiveAbility(state, id);
       const disabled = availability.ok ? "" : "disabled";
-      return `<button class="btn" data-ability-use="${ability.id}" data-ability="${ability.id}" ${disabled}>${escapeHtml(ability.name)}${ability.costSp ? ` (${ability.costSp} SP)` : ""}</button>`;
+      return `<button class="btn" data-ability-use="${ability.id}" data-ability="${ability.id}" ${disabled}>${escapeHtml(ability.name)}</button>`;
     }).join("");
 
     const sections = [];
@@ -6907,7 +6791,7 @@
 
     const tile = currentTile(state);
     const dungeonDestination = currentDungeonDestination(state);
-    const tileInfo = tile ? renderTileInfo(tile) : `
+    const tileInfo = tile ? renderTileInfo(tile, state.world.areaId) : `
       <div class="small muted">No map in this area.</div>
     `;
 
@@ -6930,21 +6814,9 @@
           </div>
         </div>
 
-        ${renderExplorationAbilitiesPanel()}
-
         ${area.map ? `
           <div class="mapWrap">
             <div class="mapPane" id="map_pane">
-              <div class="mapToolbar">
-                <div>
-                  <div class="small muted" style="margin-bottom:6px; line-height:1.4">Map legend</div>
-                  <div class="mapLegend">${renderMapLegend()}</div>
-                </div>
-                <div>
-                  <button class="btn" id="btn_map_camera_mode" title="Toggle map camera mode">Camera: ${cameraModeLabel(state.ui.mapCameraMode)}</button>
-                  <div class="small muted" style="margin-top:6px; line-height:1.4">${state.ui.mapCameraMode === MAP_CAMERA_MODES.follow ? "Follow mode only shifts when you move within 3 tiles of a viewport edge." : "Fixed mode keeps you as close to the center of the viewport as possible."}</div>
-                </div>
-              </div>
               <div class="mapViewport" id="map_viewport">
                 <div class="map" id="map"></div>
               </div>
@@ -6966,6 +6838,24 @@
               </div>
             </div>
           </div>
+
+          <div class="panel">
+            <header><h2>Map Notes</h2><div class="hint">Legend and camera settings.</div></header>
+            <div class="body">
+              <div style="display:flex; gap:12px; align-items:flex-start; justify-content:space-between; flex-wrap:wrap">
+                <div>
+                  <div class="small muted" style="margin-bottom:6px; line-height:1.4">Map legend</div>
+                  <div class="mapLegend">${renderMapLegend()}</div>
+                </div>
+                <div style="max-width:360px">
+                  <button class="btn" id="btn_map_camera_mode" data-tooltip="Toggle how the map camera behaves while you move around the current area.">Camera: ${cameraModeLabel(state.ui.mapCameraMode)}</button>
+                  <div class="small muted" style="margin-top:6px; line-height:1.4">${state.ui.mapCameraMode === MAP_CAMERA_MODES.follow ? "Follow mode only shifts when you move within 3 tiles of a viewport edge." : "Fixed mode keeps you as close to the center of the viewport as possible."}</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          ${renderExplorationAbilitiesPanel()}
         ` : `
           <div class="panel">
             <header><h2>Town Options</h2><div class="hint">Safe actions</div></header>
@@ -6976,7 +6866,6 @@
                   <div class="small muted" style="line-height:1.5; margin-top:6px">
                     • Long rest to full HP/SP<br/>
                     • Visit the shop to buy/sell gear and potions<br/>
-                    • Use the workshop to enhance equipment and brew potions<br/>
                     • Travel out to explore
                   </div>
                 </div>
@@ -6985,18 +6874,19 @@
                   <div style="display:flex; gap:8px; flex-wrap:wrap">
                     <button class="btn primary" id="btn_longrest2">Long Rest</button>
                     <button class="btn" id="btn_shop">Go to Shop</button>
-                    <button class="btn" id="btn_crafting">Go to Crafting</button>
                   </div>
                 </div>
               </div>
             </div>
           </div>
+
+          ${renderExplorationAbilitiesPanel()}
         `}
       </div>
     `;
   }
 
-  function renderTileInfo(tile){
+  function renderTileInfo(tile, areaId=state.world.areaId){
     const terrainBadge = terrainBadgeHtml(tile.terrain || "unknown");
 
     if(!tile.revealed) return `
@@ -7008,12 +6898,25 @@
     `;
 
     if(tile.home){
+      if(tile.type === "dungeon" && tile.content){
+        const destination = getArea(tile.content);
+        const linkedArea = tile.linkedDungeonAreaId ? getArea(tile.linkedDungeonAreaId) : null;
+        return `
+          <div style="display:flex; gap:8px; flex-wrap:wrap; margin-bottom:8px">
+            ${terrainBadge}
+            <span class="badge warn">Travel Tile</span>
+            <span class="badge warn">Entrance</span>
+            <span class="badge">${escapeHtml(destination.name)}</span>
+          </div>
+          <div class="small muted">This is your area's entrance tile. You can <strong>Travel</strong> between locations from here, use <strong>Enter Town</strong> to return to safety, or stand here and use <strong>${escapeHtml(dungeonEnterLabel(destination))}</strong> to return to the linked ${escapeHtml(destination.name)} entrance${linkedArea ? ` for <strong>${escapeHtml(linkedArea.name)}</strong>` : ""}.</div>
+        `;
+      }
       return `
         <div style="display:flex; gap:8px; flex-wrap:wrap; margin-bottom:8px">
           ${terrainBadge}
-          <span class="badge warn">Town</span>
+          <span class="badge warn">Travel Tile</span>
         </div>
-        <div class="small muted">This is the town tile. You can <strong>Travel</strong> between locations from here, and use <strong>Enter Town</strong> to return to safety.</div>
+        <div class="small muted">This is the area's travel tile. You can <strong>Travel</strong> between locations from here, and use <strong>Enter Town</strong> to return to safety.</div>
       `;
     }
     if(tile.type === "dungeon"){
@@ -7086,8 +6989,6 @@
     if(btnLong){
       btnLong.addEventListener("click", () => longRest(state));
       document.getElementById("btn_shop").addEventListener("click", () => { state.tab="shop"; render(); });
-      const btnCrafting = document.getElementById("btn_crafting");
-      if(btnCrafting) btnCrafting.addEventListener("click", () => { state.tab="crafting"; render(); });
     }
 
     document.querySelectorAll("button[data-ability-use]").forEach(btn => {
@@ -7129,18 +7030,28 @@
 
             const terrainName = tile.terrain ? (tile.terrain.charAt(0).toUpperCase() + tile.terrain.slice(1)) : "Unknown";
             const status = !tile.revealed
-              ? "unrevealed"
+              ? "Unrevealed"
               : tile.home
-                ? "home"
+                ? "Home"
                 : tile.type === "dungeon"
-                  ? "dungeon"
-                  : (tile.type !== "empty" && !tile.resolved ? tile.type : "clear");
-            cell.title = `${terrainName} terrain • [${x+1}, ${y+1}] • ${status}`;
+                  ? "Dungeon"
+                  : (tile.type !== "empty" && !tile.resolved ? formatDamageTypeLabel(tile.type) : "Clear");
+            const tileTooltipHtml = `
+              <div style="font-weight:700; font-size:13px; margin-bottom:6px">Tile [${x+1}, ${y+1}]</div>
+              <div class="trow"><div class="k">Terrain</div><div class="v">${escapeHtml(terrainName)}</div></div>
+              <div class="trow"><div class="k">Status</div><div class="v">${escapeHtml(status)}</div></div>
+              ${isPlayer ? `<div class="badgeWrap" style="margin-top:8px"><span class="badge good">you are here</span></div>` : ``}
+            `;
 
-            cell.addEventListener("mouseenter", () => {
+            cell.addEventListener("mouseenter", (e) => {
               state.ui.selectedTile = {x,y};
-              if(tileInfoEl) tileInfoEl.innerHTML = renderTileInfo(tile);
+              if(tileInfoEl) tileInfoEl.innerHTML = renderTileInfo(tile, state.world.areaId);
+              showTooltip(tileTooltipHtml, e.clientX, e.clientY);
             });
+            cell.addEventListener("mousemove", (e) => {
+              showTooltip(tileTooltipHtml, e.clientX, e.clientY);
+            });
+            cell.addEventListener("mouseleave", () => hideTooltip());
             mapEl.appendChild(cell);
           }
         }
@@ -7185,7 +7096,12 @@
       const enterDungeonBtn = document.getElementById("btn_enter_dungeon");
       const dungeonDestination = currentDungeonDestination(state);
       if(enterDungeonBtn && dungeonDestination){
-        enterDungeonBtn.addEventListener("click", ()=>travelTo(state, dungeonDestination.id, { bypassTravelRequirement:true, viaDungeon:true }));
+        enterDungeonBtn.addEventListener("click", ()=>travelTo(state, dungeonDestination.area.id, {
+          bypassTravelRequirement:true,
+          viaDungeon:true,
+          arrivalX: dungeonDestination.arrivalX,
+          arrivalY: dungeonDestination.arrivalY
+        }));
       }
 
       document.getElementById("btn_gather").addEventListener("click", ()=>gatherResource(state));
@@ -7226,7 +7142,7 @@
           const ability = getAbility(id);
           const availability = canUseActiveAbility(state, id);
           const disabled = availability.ok ? "" : "disabled";
-          return `<button class="btn" data-ability-use="${ability.id}" data-ability="${ability.id}" ${disabled}>${escapeHtml(ability.name)}${ability.costSp ? ` (${ability.costSp} SP)` : ""}</button>`;
+          return `<button class="btn" data-ability-use="${ability.id}" data-ability="${ability.id}" ${disabled}>${escapeHtml(ability.name)}</button>`;
         }).join("")
       : `<span class="small muted">No active combat abilities.</span>`;
 
@@ -7272,17 +7188,14 @@
           <header><h2>Your Actions</h2><div class="hint">Turn: ${state.combat.turn}</div></header>
           <div class="body">
             <div class="small muted" style="margin-bottom:8px; line-height:1.5">
-              Attack with <strong>${escapeHtml(ap.weaponName)}</strong> (attack ${fmtSigned(ap.attackBonus)}, damage ${escapeHtml(ap.damageExpr)}${Number(ap.weaponDamageBonus || 0) ? fmtSigned(ap.weaponDamageBonus) : ""}+mod).
-              ${dualAgileAttack ? `<br/>Off-hand follow-up with <strong>${escapeHtml(offAp.weaponName)}</strong> at ${fmtSigned(Math.max(1, Number(offAp.attackBonus || 0) - 5))} to hit (minimum +1), then normal damage on a hit.` : ``}
+              Attack with <strong>${escapeHtml(ap.weaponName)}</strong> (attack ${fmtSigned(ap.attackBonus)}, damage ${escapeHtml(ap.damageExpr)}+mod).
+              ${dualAgileAttack ? `<br/>Off-hand follow-up with <strong>${escapeHtml(offAp.weaponName)}</strong> at ${fmtSigned(Number(offAp.attackBonus || 0) - 4)} to hit, then normal damage on a hit.` : ``}
               ${ammoLine ? `<br/>${escapeHtml(ammoLine)}` : ``}
             </div>
-            <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:center">
+            <div style="display:flex; gap:8px; flex-wrap:wrap">
               <button class="btn primary" id="btn_attack" ${state.combat.turn!=="player" ? "disabled" : ""}>Attack</button>
-              <button class="btn" id="btn_potion" ${state.combat.turn!=="player" ? "disabled" : ""}>Use Consumable</button>
+              <button class="btn" id="btn_potion" ${state.combat.turn!=="player" ? "disabled" : ""}>Use Potion</button>
               <button class="btn danger" id="btn_flee" ${state.combat.turn!=="player" ? "disabled" : ""}>Flee</button>
-              <select id="combat_consumable_select" ${state.player.inventory.some(entry => getItem(entry.itemId).type === "consumable") ? "" : "disabled"} style="min-width:220px; background:rgba(17,21,34,.65); color:var(--text); border:1px solid var(--border); border-radius:10px; padding:8px">
-                ${state.player.inventory.filter(entry => getItem(entry.itemId).type === "consumable").map(entry => `<option value="${entry.itemId}">${escapeHtml(getItem(entry.itemId).name)} ×${Math.max(1, Number(entry.qty || 1))}</option>`).join("") || `<option value="">No consumables</option>`}
-              </select>
             </div>
             <div style="margin-top:12px">
               <div class="small muted" style="margin-bottom:6px">Class abilities</div>
@@ -7322,11 +7235,7 @@
       return;
     }
     document.getElementById("btn_attack").addEventListener("click", () => { playerAttack(state); });
-    document.getElementById("btn_potion").addEventListener("click", () => {
-      const select = document.getElementById("combat_consumable_select");
-      const itemId = select ? select.value : "potion_healing";
-      if(itemId) useConsumable(state, itemId);
-    });
+    document.getElementById("btn_potion").addEventListener("click", () => usePotion(state));
     document.getElementById("btn_flee").addEventListener("click", () => flee(state));
     document.querySelectorAll("button[data-ability-use]").forEach(btn => {
       btn.addEventListener("click", () => {
@@ -7345,7 +7254,7 @@
 
     const statRows = STATS.map(s => `
       <div class="kv">
-        <div class="k statHint" data-stat-tip="${s}">${fullStatName(s)} (${s})</div>
+        <div class="k statHint" data-stat-tip="${s}">${fullStatName(s)}</div>
         <div class="v">${p.stats[s]} <span class="muted">(${fmtSigned(statMod(p.stats[s]))})</span></div>
       </div>
     `).join("");
@@ -7376,8 +7285,7 @@
 
       return `
         <tr>
-          <td title="${escapeHtml(SKILL_TOOLTIPS[sk.id] || "")}">${sk.id}</td>
-          <td class="mono">${sk.stat}</td>
+          <td class="skillHint" data-skill-tip="${sk.id}">${sk.id}</td>
           <td class="mono">${fmtSigned(base)}</td>
           <td class="mono">${proficiency}</td>
           <td class="mono">${fmtSigned(total)}</td>
@@ -7459,7 +7367,7 @@
               <table class="table">
                 <thead>
                   <tr>
-                    <th>Skill</th><th>Stat</th><th>Base</th><th>Prof</th><th>Total</th><th>Train</th>
+                    <th>Skill</th><th>Base</th><th>Prof</th><th>Total</th><th>Train</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -7619,6 +7527,7 @@
     const itemRows = sortRows(p.inventory.map(e => {
       const it = getItem(e.itemId);
       const value = adjustedSellPriceCp(state.player, it);
+      const itemClass = itemTextClass(it, state.player);
       return {
         sort: {
           name: it.name,
@@ -7629,13 +7538,13 @@
         },
         html: `
           <tr>
-            <td><span class="itemLink" data-item="${it.id}">${escapeHtml(it.name)}</span></td>
-            <td>${escapeHtml(itemCategoryLabel(it))}</td>
-            <td class="mono">${escapeHtml(itemDmgOrAC(it))}</td>
+            <td class="${itemClass}">${itemLinkHtml(it, state.player)}</td>
+            <td class="${itemClass}">${escapeHtml(itemCategoryLabel(it))}</td>
+            <td class="mono ${itemClass}">${escapeHtml(itemDmgOrAC(it))}</td>
             <td class="mono">${e.qty}</td>
             <td class="mono">${formatCoins(value)}</td>
             <td>
-              ${it.type==="consumable" ? `<button class="btn" data-use="${it.id}">Use</button>` : ``}
+              ${it.type==="consumable" && it.id==="potion_healing" ? `<button class="btn" data-use="${it.id}">Use</button>` : ``}
               ${canSellItem(it) ? `<button class="btn" data-sell="${it.id}" ${inTown?"":"disabled"}>Sell</button>` : `<span class="small muted">—</span>`}
             </td>
           </tr>
@@ -7700,155 +7609,15 @@ function wireInventoryTab(){
     document.querySelectorAll("button[data-use]").forEach(btn => {
       btn.addEventListener("click", () => {
         const id = btn.getAttribute("data-use");
-        if(id) useConsumable(state, id);
+        if(id === "potion_healing"){
+          usePotion(state);
+        }
       });
     });
 
     const mainBody = document.getElementById("main_body");
     wireItemTooltips(mainBody);
     wireSortButtons(mainBody);
-  }
-
-  function renderCraftingIngredients(ingredients){
-    return `
-      <div class="recipeIngredients">
-        ${(ingredients || []).map(entry => {
-          const item = getItem(entry.id);
-          const need = Math.max(1, Number(entry.qty || 1));
-          const have = itemQuantity(state.player, entry.id);
-          return `<span class="ingredientBadge ${have >= need ? "ok" : "missing"}">${need}× ${escapeHtml(item.name)} <span class="muted">(${have})</span></span>`;
-        }).join("")}
-      </div>
-    `;
-  }
-
-  function renderCraftingTab(){
-    if(state.world.areaId !== "town"){
-      return `<div class="small muted">You must be in town to access the workshop.</div>`;
-    }
-
-    const weaponTargets = craftingTargets(state.player, "weapon");
-    const gearTargets = craftingTargets(state.player, "gear");
-    const resourceEntries = state.player.inventory
-      .filter(entry => getItem(entry.itemId).type === "resource")
-      .sort((a, b) => getItem(a.itemId).name.localeCompare(getItem(b.itemId).name));
-
-    const resourceBadges = resourceEntries.length
-      ? `<div class="badgeWrap">${resourceEntries.map(entry => `<span class="badge"><span class="muted">${escapeHtml(getItem(entry.itemId).name)}</span> <strong class="mono">×${Math.max(1, Number(entry.qty || 1))}</strong></span>`).join("")}</div>`
-      : `<div class="small muted">No crafting resources collected yet. Gather materials out in the maps first.</div>`;
-
-    const weaponCraftReady = weaponTargets.length > 0 && craftingHasIngredients(state.player, WEAPON_ENHANCEMENT_RECIPE.ingredients);
-    const gearCraftReady = gearTargets.length > 0 && craftingHasIngredients(state.player, GEAR_ENHANCEMENT_RECIPE.ingredients);
-
-    return `
-      <div class="craftingGrid">
-        <div class="panel">
-          <header><h2>Workshop</h2><div class="hint">Town only</div></header>
-          <div class="body small muted" style="line-height:1.55">
-            Use gathered materials to enhance weapons and gear or brew fresh potions. Crafting can only be performed in town.
-            <div style="margin-top:12px">
-              <div class="small muted" style="margin-bottom:6px">Materials on hand</div>
-              ${resourceBadges}
-            </div>
-          </div>
-        </div>
-
-        <div class="panel">
-          <header><h2>Enhance Equipment</h2><div class="hint">+1 upgrades</div></header>
-          <div class="body recipeList">
-            <div class="recipeCard">
-              <div class="recipeHeader">
-                <div>
-                  <div class="recipeTitle">${escapeHtml(WEAPON_ENHANCEMENT_RECIPE.name)}</div>
-                  <div class="small muted">${escapeHtml(WEAPON_ENHANCEMENT_RECIPE.summary)}</div>
-                </div>
-                <span class="pill"><span class="muted">Result</span> <strong>+1 hit / +1 damage</strong></span>
-              </div>
-              ${renderCraftingIngredients(WEAPON_ENHANCEMENT_RECIPE.ingredients)}
-              <div class="recipeActions">
-                <select id="craft_weapon_select" class="recipeSelect" ${weaponTargets.length ? "" : "disabled"}>
-                  ${weaponTargets.length ? weaponTargets.map(target => `<option value="${target.key}">${escapeHtml(target.label)}</option>`).join("") : `<option value="">No base weapons available</option>`}
-                </select>
-                <button class="btn primary" id="btn_craft_weapon" ${weaponCraftReady ? "" : "disabled"}>Enhance Weapon</button>
-              </div>
-            </div>
-
-            <div class="recipeCard">
-              <div class="recipeHeader">
-                <div>
-                  <div class="recipeTitle">${escapeHtml(GEAR_ENHANCEMENT_RECIPE.name)}</div>
-                  <div class="small muted">${escapeHtml(GEAR_ENHANCEMENT_RECIPE.summary)}</div>
-                </div>
-                <span class="pill"><span class="muted">Result</span> <strong>+1 AC</strong></span>
-              </div>
-              ${renderCraftingIngredients(GEAR_ENHANCEMENT_RECIPE.ingredients)}
-              <div class="recipeActions">
-                <select id="craft_gear_select" class="recipeSelect" ${gearTargets.length ? "" : "disabled"}>
-                  ${gearTargets.length ? gearTargets.map(target => `<option value="${target.key}">${escapeHtml(target.label)}</option>`).join("") : `<option value="">No base gear available</option>`}
-                </select>
-                <button class="btn primary" id="btn_craft_gear" ${gearCraftReady ? "" : "disabled"}>Reinforce Gear</button>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div class="panel">
-          <header><h2>Alchemy</h2><div class="hint">Herb recipes</div></header>
-          <div class="body recipeList">
-            ${ALCHEMY_RECIPES.map(recipe => {
-              const resultItem = getItem(recipe.resultItemId);
-              const ready = craftingHasIngredients(state.player, recipe.ingredients);
-              return `
-                <div class="recipeCard">
-                  <div class="recipeHeader">
-                    <div>
-                      <div class="recipeTitle">${escapeHtml(recipe.name)}</div>
-                      <div class="small muted">${escapeHtml(recipe.summary)}</div>
-                    </div>
-                    <span class="pill"><span class="muted">Creates</span> <strong><span class="itemLink" data-item="${resultItem.id}">${escapeHtml(resultItem.name)}</span>${Math.max(1, Number(recipe.resultQty || 1)) > 1 ? ` ×${Math.max(1, Number(recipe.resultQty || 1))}` : ""}</strong></span>
-                  </div>
-                  ${renderCraftingIngredients(recipe.ingredients)}
-                  <div class="recipeActions">
-                    <button class="btn" data-craft-recipe="${recipe.id}" ${ready ? "" : "disabled"}>Craft</button>
-                    <span class="small muted">${escapeHtml(resultItem.effectText || "")}</span>
-                  </div>
-                </div>
-              `;
-            }).join("")}
-          </div>
-        </div>
-      </div>
-    `;
-  }
-
-  function wireCraftingTab(){
-    if(state.world.areaId !== "town") return;
-
-    const btnWeapon = document.getElementById("btn_craft_weapon");
-    if(btnWeapon){
-      btnWeapon.addEventListener("click", () => {
-        const sel = document.getElementById("craft_weapon_select");
-        craftEnhancement(state, "weapon", sel ? sel.value : "");
-      });
-    }
-
-    const btnGear = document.getElementById("btn_craft_gear");
-    if(btnGear){
-      btnGear.addEventListener("click", () => {
-        const sel = document.getElementById("craft_gear_select");
-        craftEnhancement(state, "gear", sel ? sel.value : "");
-      });
-    }
-
-    document.querySelectorAll("button[data-craft-recipe]").forEach(btn => {
-      btn.addEventListener("click", () => {
-        const recipeId = btn.getAttribute("data-craft-recipe");
-        if(recipeId) craftAlchemyRecipe(state, recipeId);
-      });
-    });
-
-    const mainBody = document.getElementById("main_body");
-    wireItemTooltips(mainBody);
   }
 
   function renderShopTab(){
@@ -7867,6 +7636,7 @@ function wireInventoryTab(){
       const it = getItem(s.id);
       const price = adjustedBuyPriceCp(state.player, s.price);
       const displayName = s.qty > 1 ? `${it.name} x${s.qty}` : it.name;
+      const itemClass = itemTextClass(it, state.player);
       return {
         sort: {
           name: it.name,
@@ -7877,9 +7647,9 @@ function wireInventoryTab(){
         },
         html: `
           <tr>
-            <td><span class="itemLink" data-item="${it.id}">${escapeHtml(displayName)}</span></td>
-            <td>${escapeHtml(itemCategoryLabel(it))}</td>
-            <td class="mono">${escapeHtml(itemDmgOrAC(it))}</td>
+            <td class="${itemClass}">${itemLinkHtml(it, state.player, displayName)}</td>
+            <td class="${itemClass}">${escapeHtml(itemCategoryLabel(it))}</td>
+            <td class="mono ${itemClass}">${escapeHtml(itemDmgOrAC(it))}</td>
             <td class="mono">${formatCoins(price)}</td>
             <td><button class="btn primary" data-buy="${it.id}">${s.qty > 1 ? `Buy x${s.qty}` : "Buy"}</button></td>
           </tr>
@@ -7891,6 +7661,7 @@ function wireInventoryTab(){
     const sellRows = sortRows(sellableEntries.map(e => {
       const it = getItem(e.itemId);
       const sellPrice = adjustedSellPriceCp(state.player, it);
+      const itemClass = itemTextClass(it, state.player);
       return {
         sort: {
           name: it.name,
@@ -7901,9 +7672,9 @@ function wireInventoryTab(){
         },
         html: `
           <tr>
-            <td><span class="itemLink" data-item="${it.id}">${escapeHtml(it.name)}</span></td>
-            <td>${escapeHtml(itemCategoryLabel(it))}</td>
-            <td class="mono">${escapeHtml(itemDmgOrAC(it))}</td>
+            <td class="${itemClass}">${itemLinkHtml(it, state.player)}</td>
+            <td class="${itemClass}">${escapeHtml(itemCategoryLabel(it))}</td>
+            <td class="mono ${itemClass}">${escapeHtml(itemDmgOrAC(it))}</td>
             <td class="mono">${e.qty}</td>
             <td class="mono">${formatCoins(sellPrice)}</td>
             <td><button class="btn" data-sell="${it.id}">Sell</button></td>
@@ -7961,8 +7732,8 @@ function wireInventoryTab(){
         <div class="panel">
           <header><h2>Tip</h2><div class="hint">Gear matters</div></header>
           <div class="body small muted" style="line-height:1.5">
-            Weapons and armor now have +1 crafting upgrades available in town.
-            Healing and stamina potions can be bought here or brewed from herbs at the workshop.
+            Upgrading armor increases AC. Better weapons improve damage dice.
+            Potions currently heal <span class="mono">2d4+2</span>.
             Carry Sack and Backpack accessories increase carrying capacity while equipped.
           </div>
         </div>
@@ -8088,9 +7859,126 @@ function wireInventoryTab(){
       .replaceAll("'","&#039;");
   }
 
+  function currentLogMode(state){
+    return state && state.ui && state.ui.logMode === LOG_MODES.detail ? LOG_MODES.detail : LOG_MODES.compact;
+  }
+
+  function logTokenHtml(label, tooltip){
+    return `<span class="logToken" data-tooltip="${escapeHtml(tooltip)}">${escapeHtml(label)}</span>`;
+  }
+
+  function collectLogDetailMatches(line){
+    const matches = [];
+    const pushMatches = (regex, buildTooltip) => {
+      regex.lastIndex = 0;
+      let match;
+      while((match = regex.exec(line))){
+        matches.push({ start: match.index, end: match.index + match[0].length, tooltip: buildTooltip(match) });
+        if(match[0].length === 0) regex.lastIndex += 1;
+      }
+    };
+
+    pushMatches(/rolls\s+(\d+)\/(\d+),\s*kept\s+(\d+)/g, m => `Two rolls were made (${m[1]} and ${m[2]}). The kept result was ${m[3]}.`);
+    pushMatches(/vs\s+([A-Za-z][A-Za-z -]*)\s+DC\s+(\d+)/g, m => `This compares the final result against ${m[1].trim()} DC ${m[2]}. Meet or beat the target to succeed.`);
+    pushMatches(/vs\s+AC\s+(\d+)/g, m => `This compares the final result against Armor Class ${m[1]}. Meet or beat the target to hit.`);
+    pushMatches(/base\s+DC\s+(\d+)/gi, m => `The base difficulty for this check is ${m[1]} before situational modifiers.`);
+    pushMatches(/\bd(\d+)\((\d+)\)/gi, m => `A d${m[1]} was rolled and came up ${m[2]} before modifiers.`);
+    pushMatches(/\bd(\d+)\s+(\d+)\b/gi, m => `A d${m[1]} was rolled and came up ${m[2]}.`);
+    pushMatches(/=\s*(-?\d+)/g, m => `The final total after modifiers is ${m[1]}.`);
+    pushMatches(/[+-]\s?\d+/g, m => `This modifier adjusts the running total by ${m[0].replace(/\s+/g, '')}.`);
+    pushMatches(/\b-?\d+(?=\s+vs\s+(?:[A-Za-z][A-Za-z -]*\s+)?(?:AC|DC))/g, () => `This is the final result being compared against the target number.`);
+
+    matches.sort((a, b) => a.start - b.start || (b.end - b.start) - (a.end - a.start));
+    const accepted = [];
+    let cursor = -1;
+    for(const match of matches){
+      if(match.start < cursor) continue;
+      accepted.push(match);
+      cursor = match.end;
+    }
+    return accepted;
+  }
+
+  function renderLogLine(line, { detail=false } = {}){
+    const raw = String(line || "");
+    if(!detail) return `<div class="logLine">${escapeHtml(raw)}</div>`;
+    const matches = collectLogDetailMatches(raw);
+    if(!matches.length) return `<div class="logLine">${escapeHtml(raw)}</div>`;
+
+    let out = "";
+    let cursor = 0;
+    for(const match of matches){
+      if(match.start > cursor) out += escapeHtml(raw.slice(cursor, match.start));
+      out += logTokenHtml(raw.slice(match.start, match.end), match.tooltip);
+      cursor = match.end;
+    }
+    if(cursor < raw.length) out += escapeHtml(raw.slice(cursor));
+    return `<div class="logLine">${out}</div>`;
+  }
+
+  function renderLogEntries(entries, { limit=null } = {}){
+    const source = Array.isArray(entries) ? entries.slice() : [];
+    const lines = limit == null ? source.reverse() : source.slice(-limit).reverse();
+    const detail = currentLogMode(state) === LOG_MODES.detail;
+    return `<div class="logList">${lines.map(line => renderLogLine(line, { detail })).join("")}</div>`;
+  }
+
+  function renderSettingsTab(){
+    const mode = currentLogMode(state);
+    return `
+      <div class="grid" style="gap:12px">
+        <div class="panel">
+          <header><h2>Log Display</h2><div class="hint">Compact or detailed breakdowns</div></header>
+          <div class="body">
+            <div class="small muted" style="line-height:1.5; margin-bottom:12px">Compact mode keeps the current log text unchanged. Detail mode adds hover explanations for rolls, modifiers, and totals in the footer log and the full log view.</div>
+            <div style="display:flex; gap:8px; flex-wrap:wrap; margin-bottom:10px">
+              <button class="btn ${mode === LOG_MODES.compact ? 'primary' : ''}" data-log-mode="compact">Compact</button>
+              <button class="btn ${mode === LOG_MODES.detail ? 'primary' : ''}" data-log-mode="detail">Detail</button>
+            </div>
+            <div class="small muted">Current mode: <strong>${mode === LOG_MODES.detail ? 'Detail' : 'Compact'}</strong></div>
+          </div>
+        </div>
+      </div>
+    `;
+  }
+
+  function wireSettingsTab(){
+    document.querySelectorAll('button[data-log-mode]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const nextMode = btn.getAttribute('data-log-mode') === LOG_MODES.detail ? LOG_MODES.detail : LOG_MODES.compact;
+        if(state.ui.logMode === nextMode) return;
+        state.ui.logMode = nextMode;
+        save(state);
+        render();
+      });
+    });
+  }
+
   let resizeRenderTimer = null;
+  let lastWindowWidth = window.innerWidth;
+  let lastWindowHeight = window.innerHeight;
+
+  function activeElementUsesKeyboard(){
+    const active = document.activeElement;
+    if(!active || !(active instanceof HTMLElement)) return false;
+    if(active.isContentEditable) return true;
+    const tag = active.tagName;
+    if(tag === "TEXTAREA" || tag === "SELECT") return true;
+    if(tag !== "INPUT") return false;
+    const type = String(active.getAttribute("type") || "text").toLowerCase();
+    return !["button","checkbox","color","file","hidden","image","radio","range","reset","submit"].includes(type);
+  }
+
   window.addEventListener("resize", () => {
     if(typeof activeExploreViewportRefresh === "function") activeExploreViewportRefresh();
+    const width = window.innerWidth;
+    const height = window.innerHeight;
+    const widthChanged = width !== lastWindowWidth;
+    const heightDelta = Math.abs(height - lastWindowHeight);
+    const keyboardResize = !widthChanged && heightDelta > 0 && activeElementUsesKeyboard();
+    lastWindowWidth = width;
+    lastWindowHeight = height;
+    if(keyboardResize) return;
     if(resizeRenderTimer) clearTimeout(resizeRenderTimer);
     resizeRenderTimer = setTimeout(() => {
       if(!state || !state.player || state.tab !== "explore") render();

@@ -496,6 +496,22 @@
       line-height:1.35;
       white-space:pre-wrap;
     }
+    .logList{
+      display:grid;
+      gap:2px;
+    }
+    .logLine{
+      white-space:pre-wrap;
+      word-break:break-word;
+    }
+    .logToken{
+      cursor:help;
+      text-decoration:underline dotted rgba(116,192,252,.45);
+      text-underline-offset:2px;
+    }
+    .logToken:hover{
+      color:var(--text);
+    }
 
     /* Character creation */
     .creatorWrap{
@@ -821,7 +837,8 @@
     }
     .abilityBadge,
     .statusBadge,
-    .statHint{
+    .statHint,
+    .skillHint{
       cursor:help;
     }
     .resistanceGrid{
@@ -838,64 +855,11 @@
       text-decoration-color: rgba(116,192,252,.45);
       cursor: help;
     }
-
-    .craftingGrid,
-    .recipeList{
-      display:grid;
-      gap:12px;
+    .notProficientText{
+      color: rgba(255,107,107,.95) !important;
     }
-    .recipeCard{
-      border:1px solid var(--border);
-      border-radius:12px;
-      background:rgba(17,21,34,.55);
-      padding:12px;
-    }
-    .recipeHeader{
-      display:flex;
-      align-items:flex-start;
-      justify-content:space-between;
-      gap:10px;
-      flex-wrap:wrap;
-    }
-    .recipeTitle{
-      font-weight:700;
-      font-size:14px;
-      margin-bottom:4px;
-    }
-    .recipeIngredients,
-    .recipeActions{
-      display:flex;
-      gap:8px;
-      flex-wrap:wrap;
-      align-items:center;
-      margin-top:12px;
-    }
-    .ingredientBadge{
-      display:inline-flex;
-      align-items:center;
-      gap:6px;
-      padding:5px 9px;
-      border-radius:999px;
-      border:1px solid var(--border);
-      background:rgba(21,25,36,.9);
-      font-size:12px;
-      color:var(--text);
-    }
-    .ingredientBadge.ok{
-      border-color:rgba(81,207,102,.55);
-    }
-    .ingredientBadge.missing{
-      border-color:rgba(255,107,107,.55);
-      color:rgba(255,107,107,.95);
-    }
-    .recipeSelect{
-      min-width:260px;
-      max-width:100%;
-      background:rgba(17,21,34,.65);
-      color:var(--text);
-      border:1px solid var(--border);
-      border-radius:10px;
-      padding:8px;
+    .itemLink.notProficientText{
+      text-decoration-color: rgba(255,107,107,.55);
     }
 
     .tooltip{
