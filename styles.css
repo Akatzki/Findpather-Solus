@@ -111,6 +111,16 @@
       justify-content:flex-end;
       flex-wrap:wrap;
     }
+    .topmetaActionsRow{
+      display:none;
+      width:100%;
+      gap:10px;
+      align-items:center;
+      flex-wrap:wrap;
+    }
+    .topmetaDesktopAction{
+      display:inline-flex;
+    }
     .mobileActionsToggle{
       display:none;
     }
@@ -125,6 +135,18 @@
       font-size:18px;
       line-height:1;
       flex:0 0 auto;
+    }
+    .topmetaActionsRow .btn{
+      flex:1 1 0;
+      min-width:0;
+    }
+    .topmetaActionsRow .btn.mobileActionsToggle{
+      width:auto;
+      height:auto;
+      min-width:0;
+      padding:8px 10px;
+      font-size:14px;
+      line-height:1.2;
     }
     .mobileActionsDock{
       display:none;
@@ -317,7 +339,15 @@
       border-color:rgba(255,107,107,.72);
       background:rgba(178,62,62,.52);
     }
-
+    .tabbtn.filledCharcoal{
+      background:rgba(72,77,88,.72);
+      border-color:rgba(144,150,162,.34);
+      color:var(--text);
+    }
+    .tabbtn.filledCharcoal:hover{
+      border-color:rgba(177,184,197,.52);
+      background:rgba(85,91,104,.82);
+    }
 
     @keyframes softGlowPulse{
       0%, 100%{
@@ -514,6 +544,10 @@
     }
 
     /* Character creation */
+    .creatorTopbar{
+      position:static;
+      top:auto;
+    }
     .creatorWrap{
       max-width:1100px;
       margin:32px auto;
@@ -589,6 +623,9 @@
       padding:10px 10px;
       color:var(--text);
       outline:none;
+    }
+    .creatorName input{
+      font-size:16px;
     }
     .field input:focus, .field select:focus{
       border-color: rgba(116,192,252,.65);
@@ -897,6 +934,51 @@
     .toast.bad{ border-color: rgba(255,107,107,.7); }
     .toast.good{ border-color: rgba(81,207,102,.7); }
     .toast.warn{ border-color: rgba(255,212,59,.7); }
+
+    .combatToast{
+      position:fixed;
+      top:74px;
+      left:50%;
+      z-index:10001;
+      width:min(420px, calc(100vw - 24px));
+      padding:9px 12px;
+      border-radius:12px;
+      border:1px solid rgba(90,99,120,.72);
+      background:rgba(28,33,46,.96);
+      box-shadow: var(--shadow);
+      color:var(--text);
+      font-size:12px;
+      line-height:1.35;
+      text-align:center;
+      pointer-events:none;
+      opacity:0;
+      transform:translate(-50%, -10px);
+      transition:opacity .16s ease, transform .16s ease;
+    }
+    .combatToast.show{
+      opacity:1;
+      transform:translate(-50%, 0);
+    }
+    .combatToast.good{
+      background:rgba(39,97,51,.97);
+      border-color:rgba(81,207,102,.8);
+    }
+    .combatToast.miss{
+      background:rgba(83,90,105,.97);
+      border-color:rgba(166,173,187,.56);
+    }
+    .combatToast.buff{
+      background:rgba(112,94,29,.97);
+      border-color:rgba(255,212,59,.78);
+    }
+    .combatToast.bad{
+      background:rgba(137,49,49,.97);
+      border-color:rgba(255,107,107,.8);
+    }
+    .combatToast.neutral{
+      background:rgba(28,33,46,.96);
+      border-color:rgba(90,99,120,.72);
+    }
 
 
     .modal{
@@ -1223,11 +1305,17 @@
       .topbar{ flex-wrap:wrap; }
       .topbarLead,
       .bars,
-      .topmeta{
+      .topmeta,
+      .topmetaActionsRow{
         width:100%;
         min-width:0;
       }
-      .mobileActionsToggle{ display:inline-flex; }
+      .topmeta{
+        justify-content:flex-start;
+      }
+      .topmetaDesktopAction{ display:none; }
+      .topmetaActionsRow{ display:flex; }
+      .topmetaActionsRow .mobileActionsToggle{ display:inline-flex; }
       .mobileActionsDock{ display:block; }
       .mobileActionsInner{
         max-width:none;
@@ -1278,6 +1366,11 @@
       .panel .body{ padding:10px; }
       .sidebar .body{ padding:8px; }
       .mobileActionsInner{ padding:6px 10px 0; }
+      .combatToast{
+        top:66px;
+        width:calc(100vw - 20px);
+        font-size:11px;
+      }
       .mapViewport{
         --map-gap: 3px;
         padding:6px;

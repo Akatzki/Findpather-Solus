@@ -85,8 +85,8 @@
       startingTrainedSkill: "Athletics",
       baseSkillPoints: 3,
       startingAbility: "second_wind",
-      optionalAbilities: ["guard_stance", "feint_strike", "guard_strike", "parry", "aggressive_block"],
-      abilities: ["second_wind", "guard_stance", "feint_strike", "guard_strike", "parry", "aggressive_block"]
+      optionalAbilities: ["power_strike", "feint_strike", "guard_strike", "parry", "aggressive_block"],
+      abilities: ["second_wind", "power_strike", "feint_strike", "guard_strike", "parry", "aggressive_block"]
     },
     "Barbarian": {
       id: "Barbarian",
@@ -119,8 +119,8 @@
       startingTrainedSkill: "Acrobatics",
       baseSkillPoints: 4,
       startingAbility: "martial_arts",
-      optionalAbilities: ["open_hand", "river_stance", "mountain_stance", "cloud_stance", "flame_stance"],
-      abilities: ["martial_arts", "open_hand", "river_stance", "mountain_stance", "cloud_stance", "flame_stance"]
+      optionalAbilities: ["tree_stance", "river_stance", "mountain_stance", "cloud_stance", "flame_stance"],
+      abilities: ["martial_arts", "tree_stance", "river_stance", "mountain_stance", "cloud_stance", "flame_stance"]
     },
     "Ranger": {
       id: "Ranger",
@@ -134,7 +134,7 @@
         armor: { unarmored: true, light: true, medium: true, heavy: false, shields: true }
       },
       startingTrainedSkill: "Survival",
-      baseSkillPoints: 4,
+      baseSkillPoints: 3,
       startingAbility: "hunting",
       optionalAbilities: ["hunters_mark", "eagle_eye", "precise_strike", "spike_lure", "ambush"],
       abilities: ["hunting", "hunters_mark", "eagle_eye", "precise_strike", "spike_lure", "ambush"]
@@ -151,7 +151,7 @@
         armor: { unarmored: true, light: true, medium: false, heavy: false, shields: false }
       },
       startingTrainedSkill: "Stealth",
-      baseSkillPoints: 5,
+      baseSkillPoints: 4,
       startingAbility: "sneak_attack",
       optionalAbilities: ["dirty_trick", "cover_step", "quiet_step", "flight_step", "open_wound"],
       abilities: ["sneak_attack", "dirty_trick", "cover_step", "quiet_step", "flight_step", "open_wound"]
@@ -173,8 +173,8 @@
         "Take a deep breath and dig in."
       ]
     },
-    guard_stance: {
-      id: "guard_stance",
+    power_strike: {
+      id: "power_strike",
       name: "Power Strike",
       classId: "Fighter",
       kind: "active",
@@ -341,8 +341,8 @@
         "Butt-bumps are also technically Unarmed attacks."
       ]
     },
-    open_hand: {
-      id: "open_hand",
+    tree_stance: {
+      id: "tree_stance",
       name: "Tree Stance",
       classId: "Monk",
       kind: "active",
@@ -593,7 +593,7 @@
       contexts: ["exploration", "combat"],
       costSp: 0,
       duration: null,
-      summary: "Passive level-2 Acrobatics skill ability. Gain +4 to flee checks.",
+      summary: "Passive level 2 skill ability. Gain +4 to flee checks.",
       details: [
         "You know how to slip out of danger when things go bad."
       ]
@@ -609,7 +609,7 @@
       contexts: ["exploration"],
       costSp: 0,
       duration: null,
-      summary: "Passive level-2 Athletics skill ability. Increase carrying capacity by 10 inventory slots.",
+      summary: "Passive level 2 skill ability. Increase carrying capacity by 10 inventory slots.",
       details: [
         "You haul more loot before needing to head back."
       ]
@@ -625,7 +625,7 @@
       contexts: ["exploration"],
       costSp: 0,
       duration: null,
-      summary: "Passive level-2 Perception skill ability. Gain +4 Perception on Search actions.",
+      summary: "Passive level 2 skill ability. Gain +4 Perception on Search actions.",
       details: [
         "You notice trails, angles, and oddities others miss."
       ]
@@ -641,7 +641,7 @@
       contexts: ["exploration"],
       costSp: 0,
       duration: null,
-      summary: "Passive level-2 Social skill ability. Gain an extra 5% buy discount and 5% sell bonus in shops.",
+      summary: "Passive level 2 skill ability. Gain an extra 5% buy discount and 5% sell bonus in shops.",
       details: [
         "A practiced dealmaker keeps more coin in hand."
       ]
@@ -657,7 +657,7 @@
       contexts: ["exploration"],
       costSp: 0,
       duration: null,
-      summary: "Passive level-2 Stealth skill ability. Roll twice on wilderness short-rest Stealth checks and keep the better result.",
+      summary: "Passive level 2 skill ability. Roll twice on wilderness short-rest Stealth checks and keep the better result.",
       details: [
         "You know how to settle in without advertising your position."
       ]
@@ -673,7 +673,7 @@
       contexts: ["exploration"],
       costSp: 0,
       duration: null,
-      summary: "Passive level-2 Survival skill ability. Double gathered resource loot.",
+      summary: "Passive level 2 skill ability. Double gathered resource loot.",
       details: [
         "When you find a good patch, you make the most of it."
       ]
@@ -689,7 +689,7 @@
       contexts: ["combat"],
       costSp: 0,
       duration: null,
-      summary: "Passive level-4 Acrobatics skill ability. The first time each combat you would take damage, reduce it by 1d6.",
+      summary: "Passive level 4 skill ability. The first time each combat you would take damage, reduce it by 1d6.",
       details: [
         "A twist, slide, or shoulder turn turns a clean hit into a glancing one."
       ]
@@ -705,7 +705,7 @@
       contexts: ["combat"],
       costSp: 0,
       duration: null,
-      summary: "Passive level-4 Athletics skill ability. Melee attacks against Prone or Off-Guard enemies deal +2 damage.",
+      summary: "Passive level 4 skill ability. Melee attacks against Prone or Off-Guard enemies deal +2 damage.",
       details: [
         "You know how to press an opening with raw force."
       ]
@@ -721,7 +721,7 @@
       contexts: ["exploration"],
       costSp: 0,
       duration: null,
-      summary: "Passive level-4 Perception skill ability. Search radius increases by 1 and treasure cache coin rewards are doubled.",
+      summary: "Passive level 4 skill ability. Search radius increases by 1 and treasure cache coin rewards are doubled.",
       details: [
         "A sharper eye finds both the route and the reward."
       ]
@@ -737,7 +737,7 @@
       contexts: ["combat"],
       costSp: 0,
       duration: null,
-      summary: "Passive level-4 Social skill ability. At the start of combat, make a Social check against the enemy's Will DC; on a success, the enemy becomes Off-Guard.",
+      summary: "Passive level 4 skill ability. At the start of combat, make a Social check against the enemy's Will DC; on a success, the enemy becomes Off-Guard.",
       details: [
         "Sometimes the fight is half-won before steel ever moves."
       ]
@@ -753,7 +753,7 @@
       contexts: ["combat", "exploration"],
       costSp: 0,
       duration: null,
-      summary: "Passive level-4 Stealth skill ability. Double monster coin loot and double the quantity of any monster item drops.",
+      summary: "Passive level 4 skill ability. Double monster coin loot and double the quantity of any monster item drops.",
       details: [
         "You strip a battlefield clean before the dust settles."
       ]
@@ -769,7 +769,7 @@
       contexts: ["combat", "exploration"],
       costSp: 0,
       duration: null,
-      summary: "Passive level-4 Survival skill ability. After winning a combat, recover HP equal to the enemy's level + your Wisdom modifier (minimum 1).",
+      summary: "Passive level 4 skill ability. After winning a combat, recover HP equal to the enemy's level + your Wisdom modifier (minimum 1).",
       details: [
         "A veteran hunter knows how to patch up and press on."
       ]
@@ -4460,7 +4460,7 @@
   }
 
   function useGuardStance(state){
-    useAttackAbility(state, "guard_stance", {
+    useAttackAbility(state, "power_strike", {
       attackBonusModifier: -2,
       extraDamageOnHit: 4
     });
@@ -4536,12 +4536,12 @@
   }
 
   function useOpenHand(state){
-    const check = canUseActiveAbility(state, "open_hand");
+    const check = canUseActiveAbility(state, "tree_stance");
     if(!check.ok){
       log(state, check.reason);
       return;
     }
-    spendAbilitySp(state, "open_hand");
+    spendAbilitySp(state, "tree_stance");
     addOrRefreshStatusEffect(state.player, createStatusEffect("tree_stance"));
     log(state, "You root into Tree Stance for 10 rounds (resistance 3 to bludgeoning, piercing, and slashing).");
     finishPlayerAbilityUse(state);
@@ -4680,13 +4680,13 @@
 
   function useActiveAbility(state, abilityId){
     if(abilityId === "second_wind") return useSecondWind(state);
-    if(abilityId === "guard_stance") return useGuardStance(state);
+    if(abilityId === "power_strike") return useGuardStance(state);
     if(abilityId === "feint_strike") return useFeintStrike(state);
     if(abilityId === "guard_strike") return useGuardStrike(state);
     if(abilityId === "enrage") return useEnrage(state);
     if(abilityId === "topple") return useTopple(state);
     if(abilityId === "vicious_strike") return useViciousStrike(state);
-    if(abilityId === "open_hand") return useOpenHand(state);
+    if(abilityId === "tree_stance") return useOpenHand(state);
     if(abilityId === "river_stance") return useRiverStance(state);
     if(abilityId === "mountain_stance") return useMountainStance(state);
     if(abilityId === "cloud_stance") return useCloudStance(state);
@@ -5705,7 +5705,7 @@
       <div class="topbar creatorTopbar">
         <div class="topbarLead">
           <div class="title">
-            <h1>Findpather BETA</h1>
+            <h1>Findpather Solus - ALPHA</h1>
             <div class="subtitle">So you want to be an adventurer...</div>
           </div>
         </div>
@@ -6005,7 +6005,7 @@
         log(state, `Starting class ability: ${getAbility(defaultAbilityId).name}.`);
       }
       if(selectedAbilityId){
-        log(state, `Optional level-1 ability selected: ${getAbility(selectedAbilityId).name}.`);
+        log(state, `Optional level 1 ability selected: ${getAbility(selectedAbilityId).name}.`);
       }
       const initialSkillSummary = summarizeSkillDraft(initialSkillDraft);
       if(initialSkillSummary.length){
@@ -6072,7 +6072,7 @@
           }).join("")}
         </div>
       </div>
-    ` : `<div class="small muted" style="margin-top:12px">This class has no optional level-1 abilities.</div>`;
+    ` : `<div class="small muted" style="margin-top:12px">This class has no optional level 1 abilities.</div>`;
 
     return `
       <div class="kv"><div class="k">Key Ability</div><div class="v">${cls.keyAbilities.join(" / ")}</div></div>
@@ -6213,7 +6213,7 @@
                 </div>
                 ${preview.currentClassLevel < 1 ? `
                   <div class="abilityChoiceSection">
-                    <div class="small muted" style="margin-bottom:8px">Taking your first ${escapeHtml(preview.classId)} level grants <strong>${escapeHtml(defaultStartingAbilityIdForClass(preview.classId) ? getAbility(defaultStartingAbilityIdForClass(preview.classId)).name : "no default ability")}</strong> automatically. Choose 1 optional level-1 ability:</div>
+                    <div class="small muted" style="margin-bottom:8px">Taking your first ${escapeHtml(preview.classId)} level grants <strong>${escapeHtml(defaultStartingAbilityIdForClass(preview.classId) ? getAbility(defaultStartingAbilityIdForClass(preview.classId)).name : "no default ability")}</strong> automatically. Choose 1 optional level 1 ability:</div>
                     <div class="abilityChoiceList">
                       ${classOptionalAbilityIds(preview.classId).map(id => {
                         const ability = getAbility(id);
@@ -6500,7 +6500,7 @@
         <div class="topbarLead">
           <button class="btn mobileActionsToggle" data-ui-action="toggle-mobile-actions" aria-label="${state.ui.mobileActionsVisible ? "Hide menu" : "Show menu"}" aria-expanded="${state.ui.mobileActionsVisible ? "true" : "false"}">${state.ui.mobileActionsVisible ? "✕" : "☰"}</button>
           <div class="title">
-            <h1>Pathfinder Explorer</h1>
+            <h1>Findpather Solus - ALPHA</h1>
             <div class="subtitle">exploration-first d20 prototype</div>
           </div>
         </div>
