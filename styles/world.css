@@ -258,6 +258,17 @@
   border-color: rgba(116,192,252,.55);
 }
 
+.tile.moveTarget {
+  cursor: pointer;
+  outline: 2px solid rgba(116,192,252,.28);
+  outline-offset: -2px;
+}
+
+.tile.moveTarget:hover {
+  border-color: rgba(116,192,252,.82);
+  box-shadow: 0 0 0 2px rgba(116,192,252,.22) inset;
+}
+
 .tile:disabled {
   cursor: not-allowed;
   opacity: .65;
