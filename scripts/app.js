@@ -3878,12 +3878,167 @@
         <div class="small muted">This tile seems quiet. Use <strong>Search</strong> (1 SP) to make a Perception check and reveal nearby tiles (radius ${searchRadius}).</div>
       `;}
 
-  function wireExploreTab(){const areaSelect=document.getElementById("area_select");if(areaSelect){areaSelect.addEventListener("change",()=>{const target=areaSelect.value;if(!canTravelNow(state)){areaSelect.value=state.world.areaId;return;}travelTo(state,target);});}const btnLong=document.getElementById("btn_longrest2");if(btnLong){btnLong.addEventListener("click",()=>longRest(state));const btnShop=document.getElementById("btn_shop");const btnTownMenu=document.getElementById("btn_town_menu");const btnQuestLog=document.getElementById("btn_quest_log");if(btnShop)btnShop.addEventListener("click",()=>{state.tab="shop";render();});if(btnTownMenu)btnTownMenu.addEventListener("click",()=>{state.tab="town";render();});if(btnQuestLog)btnQuestLog.addEventListener("click",()=>{state.tab="quests";render();});}document.querySelectorAll("button[data-ability-use]").forEach(btn=>{btn.addEventListener("click",()=>{const abilityId=btn.getAttribute("data-ability-use");useActiveAbility(state,abilityId);});});const mapEl=document.getElementById("map");const area=getArea(state.world.areaId);if(area.map&&mapEl){const aState=state.world.areas[state.world.areaId];const mapPaneEl=document.getElementById("map_pane");const mapViewportEl=document.getElementById("map_viewport");const tileInfoEl=document.getElementById("tile_info");const renderMapViewport=()=>{if(!mapPaneEl||!mapViewportEl||!mapEl)return;const layout=computeMapViewportLayout(aState,mapPaneEl,mapViewportEl);const view=computeVisibleMapWindow(state,state.world.areaId,aState,layout.cols,layout.rows);mapViewportEl.style.setProperty("--map-cell-size",`${layout.cellSize}px`);mapViewportEl.style.width="100%";mapViewportEl.style.height=`${layout.height}px`;mapEl.style.setProperty("--map-cols",String(view.cols));mapEl.style.width=`${layout.gridWidth}px`;mapEl.style.height=`${layout.gridHeight}px`;mapEl.innerHTML="";for(let y=view.y;y<view.y+view.rows;y++){for(let x=view.x;x<view.x+view.cols;x++){const tile=aState.tiles[y][x];const isPlayer=(x===aState.px&&y===aState.py);const cell=document.createElement("div");const terrainCls=tile.terrain?` terrain-${tile.terrain}`:"";const symbol=isPlayer?MAP_ICONS.player:tileSymbol(tile);cell.className="tile"+terrainCls+(tile.type==="dungeon"?" dungeon":"")+(tile.revealed?" revealed":" fog")+(tile.home?" home":"")+(isPlayer?" player":"")+(!symbol?" tileBlank":"");cell.textContent=symbol||"";const terrainName=tile.terrain?(tile.terrain.charAt(0).toUpperCase()+tile.terrain.slice(1)):"Unknown";const status=!tile.revealed?"Unrevealed":tile.home?"Home":tile.type==="dungeon"?"Dungeon":(tile.type!=="empty"&&!tile.resolved?formatDamageTypeLabel(tile.type):"Clear");const tileTooltipHtml=`
+  function wireExploreTab(){
+    const areaSelect=document.getElementById("area_select");
+    if(areaSelect){
+      areaSelect.addEventListener("change",()=>{
+        const target=areaSelect.value;
+        if(!canTravelNow(state)){
+          areaSelect.value=state.world.areaId;
+          return;
+        }
+        travelTo(state,target);
+      });
+    }
+
+    const btnLong=document.getElementById("btn_longrest2");
+    if(btnLong){
+      btnLong.addEventListener("click",()=>longRest(state));
+      const btnShop=document.getElementById("btn_shop");
+      const btnTownMenu=document.getElementById("btn_town_menu");
+      const btnQuestLog=document.getElementById("btn_quest_log");
+      if(btnShop)btnShop.addEventListener("click",()=>{state.tab="shop";render();});
+      if(btnTownMenu)btnTownMenu.addEventListener("click",()=>{state.tab="town";render();});
+      if(btnQuestLog)btnQuestLog.addEventListener("click",()=>{state.tab="quests";render();});
+    }
+
+    document.querySelectorAll("button[data-ability-use]").forEach(btn=>{
+      btn.addEventListener("click",()=>{
+        const abilityId=btn.getAttribute("data-ability-use");
+        useActiveAbility(state,abilityId);
+      });
+    });
+
+    const mapEl=document.getElementById("map");
+    const area=getArea(state.world.areaId);
+    if(area.map&&mapEl){
+      const aState=state.world.areas[state.world.areaId];
+      const mapPaneEl=document.getElementById("map_pane");
+      const mapViewportEl=document.getElementById("map_viewport");
+      const tileInfoEl=document.getElementById("tile_info");
+      const canMoveToDelta=(dx,dy)=>Math.abs(dx)+Math.abs(dy)===1&&!isDirectionBlocked(state,dx,dy);
+      const isInteractiveField=(event)=>{
+        const target=event&&event.target;
+        if(!target)return false;
+        if(target.isContentEditable)return true;
+        const tag=String(target.tagName||"").toUpperCase();
+        return tag==="INPUT"||tag==="TEXTAREA"||tag==="SELECT";
+      };
+      const movementDeltaForKey=(key)=>{
+        const normalized=String(key||"").toLowerCase();
+        if(normalized==="arrowup"||normalized==="w")return{dx:0,dy:-1};
+        if(normalized==="arrowdown"||normalized==="s")return{dx:0,dy:1};
+        if(normalized==="arrowleft"||normalized==="a")return{dx:-1,dy:0};
+        if(normalized==="arrowright"||normalized==="d")return{dx:1,dy:0};
+        return null;
+      };
+      const renderMapViewport=()=>{
+        if(!mapPaneEl||!mapViewportEl||!mapEl)return;
+        const layout=computeMapViewportLayout(aState,mapPaneEl,mapViewportEl);
+        const view=computeVisibleMapWindow(state,state.world.areaId,aState,layout.cols,layout.rows);
+        mapViewportEl.style.setProperty("--map-cell-size",`${layout.cellSize}px`);
+        mapViewportEl.style.width="100%";
+        mapViewportEl.style.height=`${layout.height}px`;
+        mapEl.style.setProperty("--map-cols",String(view.cols));
+        mapEl.style.width=`${layout.gridWidth}px`;
+        mapEl.style.height=`${layout.gridHeight}px`;
+        mapEl.innerHTML="";
+        for(let y=view.y;y<view.y+view.rows;y++){
+          for(let x=view.x;x<view.x+view.cols;x++){
+            const tile=aState.tiles[y][x];
+            const isPlayer=(x===aState.px&&y===aState.py);
+            const cell=document.createElement("div");
+            const terrainCls=tile.terrain?` terrain-${tile.terrain}`:"";
+            const symbol=isPlayer?MAP_ICONS.player:tileSymbol(tile);
+            const dx=x-aState.px;
+            const dy=y-aState.py;
+            const canClickMove=canMoveToDelta(dx,dy);
+            cell.className="tile"+terrainCls+(tile.type==="dungeon"?" dungeon":"")+(tile.revealed?" revealed":" fog")+(tile.home?" home":"")+(isPlayer?" player":"")+(canClickMove?" moveTarget":"")+(!symbol?" tileBlank":"");
+            cell.textContent=symbol||"";
+            if(canClickMove){
+              cell.setAttribute("role","button");
+              cell.setAttribute("aria-label",`Move to tile ${x + 1}, ${y + 1}`);
+            }
+            const terrainName=tile.terrain?(tile.terrain.charAt(0).toUpperCase()+tile.terrain.slice(1)):"Unknown";
+            const status=!tile.revealed?"Unrevealed":tile.home?"Home":tile.type==="dungeon"?"Dungeon":(tile.type!=="empty"&&!tile.resolved?formatDamageTypeLabel(tile.type):"Clear");
+            const tileTooltipHtml=`
                 <div style="font-weight:700; font-size:13px; margin-bottom:6px">Tile [${x + 1}, ${y + 1}]</div>
                 <div class="trow"><div class="k">Terrain</div><div class="v">${escapeHtml(terrainName)}</div></div>
                 <div class="trow"><div class="k">Status</div><div class="v">${escapeHtml(status)}</div></div>
+                ${canClickMove ? `<div class="small muted" style="margin-top:8px; line-height:1.45">Click to move here.</div>` : ``}
                 ${isPlayer ? `<div class="badgeWrap" style="margin-top:8px"><span class="badge good">you are here</span></div>` : ``}
-              `;cell.addEventListener("mouseenter",(e)=>{state.ui.selectedTile={x,y};if(tileInfoEl)tileInfoEl.innerHTML=renderTileInfo(tile);showTooltip(tileTooltipHtml,e.clientX,e.clientY);});cell.addEventListener("mousemove",(e)=>{showTooltip(tileTooltipHtml,e.clientX,e.clientY);});cell.addEventListener("mouseleave",()=>hideTooltip());mapEl.appendChild(cell);}}};renderMapViewport();requestAnimationFrame(()=>{if(state.tab==="explore"&&document.getElementById("map")===mapEl)renderMapViewport();});setExploreViewportSync(renderMapViewport,mapPaneEl,mapViewportEl,mapEl);const btnN=document.getElementById("mv_n");const btnS=document.getElementById("mv_s");const btnW=document.getElementById("mv_w");const btnE=document.getElementById("mv_e");const syncMoveDisabled=()=>{btnN.disabled=isDirectionBlocked(state,0,-1);btnS.disabled=isDirectionBlocked(state,0,1);btnW.disabled=isDirectionBlocked(state,-1,0);btnE.disabled=isDirectionBlocked(state,1,0);};syncMoveDisabled();btnN.addEventListener("click",()=>{if(btnN.disabled)return;movePlayer(state,0,-1);});btnS.addEventListener("click",()=>{if(btnS.disabled)return;movePlayer(state,0,1);});btnW.addEventListener("click",()=>{if(btnW.disabled)return;movePlayer(state,-1,0);});btnE.addEventListener("click",()=>{if(btnE.disabled)return;movePlayer(state,1,0);});const btnCameraMode=document.getElementById("btn_map_camera_mode");if(btnCameraMode){btnCameraMode.addEventListener("click",()=>{state.ui.mapCameraMode=state.ui.mapCameraMode===MAP_CAMERA_MODES.fixed?MAP_CAMERA_MODES.follow:MAP_CAMERA_MODES.fixed;save(state);render();});}const enterBtn=document.getElementById("btn_enter_town");if(enterBtn)enterBtn.addEventListener("click",()=>travelTo(state,"town"));const enterDungeonBtn=document.getElementById("btn_enter_dungeon");const dungeonDestination=currentDungeonDestination(state);if(enterDungeonBtn&&dungeonDestination){enterDungeonBtn.addEventListener("click",()=>travelTo(state,dungeonDestination.area.id,{bypassTravelRequirement:true,viaDungeon:true,arrivalX:dungeonDestination.arrivalX,arrivalY:dungeonDestination.arrivalY}));}document.getElementById("btn_gather").addEventListener("click",()=>gatherResource(state));document.getElementById("btn_search").addEventListener("click",()=>searchTile(state));window.onkeydown=(e)=>{if(state.tab!=="explore")return;if(state.combat||hasBlockingCenterOverlay(state))return;if(["ArrowUp","ArrowDown","ArrowLeft","ArrowRight"].includes(e.key))e.preventDefault();if(e.key==="ArrowUp"&&!isDirectionBlocked(state,0,-1))movePlayer(state,0,-1);if(e.key==="ArrowDown"&&!isDirectionBlocked(state,0,1))movePlayer(state,0,1);if(e.key==="ArrowLeft"&&!isDirectionBlocked(state,-1,0))movePlayer(state,-1,0);if(e.key==="ArrowRight"&&!isDirectionBlocked(state,1,0))movePlayer(state,1,0);};}else{window.onkeydown=null;}}
+              `;
+            cell.addEventListener("mouseenter",(e)=>{
+              state.ui.selectedTile={x,y};
+              if(tileInfoEl)tileInfoEl.innerHTML=renderTileInfo(tile);
+              showTooltip(tileTooltipHtml,e.clientX,e.clientY);
+            });
+            cell.addEventListener("mousemove",(e)=>{showTooltip(tileTooltipHtml,e.clientX,e.clientY);});
+            cell.addEventListener("mouseleave",()=>hideTooltip());
+            if(canClickMove){
+              cell.addEventListener("click",()=>{
+                if(state.tab!=="explore"||state.combat||hasBlockingCenterOverlay(state))return;
+                movePlayer(state,dx,dy);
+              });
+            }
+            mapEl.appendChild(cell);
+          }
+        }
+      };
+      renderMapViewport();
+      requestAnimationFrame(()=>{
+        if(state.tab==="explore"&&document.getElementById("map")===mapEl)renderMapViewport();
+      });
+      setExploreViewportSync(renderMapViewport,mapPaneEl,mapViewportEl,mapEl);
+
+      const btnN=document.getElementById("mv_n");
+      const btnS=document.getElementById("mv_s");
+      const btnW=document.getElementById("mv_w");
+      const btnE=document.getElementById("mv_e");
+      const syncMoveDisabled=()=>{
+        btnN.disabled=isDirectionBlocked(state,0,-1);
+        btnS.disabled=isDirectionBlocked(state,0,1);
+        btnW.disabled=isDirectionBlocked(state,-1,0);
+        btnE.disabled=isDirectionBlocked(state,1,0);
+      };
+      syncMoveDisabled();
+      btnN.addEventListener("click",()=>{if(btnN.disabled)return;movePlayer(state,0,-1);});
+      btnS.addEventListener("click",()=>{if(btnS.disabled)return;movePlayer(state,0,1);});
+      btnW.addEventListener("click",()=>{if(btnW.disabled)return;movePlayer(state,-1,0);});
+      btnE.addEventListener("click",()=>{if(btnE.disabled)return;movePlayer(state,1,0);});
+
+      const btnCameraMode=document.getElementById("btn_map_camera_mode");
+      if(btnCameraMode){
+        btnCameraMode.addEventListener("click",()=>{
+          state.ui.mapCameraMode=state.ui.mapCameraMode===MAP_CAMERA_MODES.fixed?MAP_CAMERA_MODES.follow:MAP_CAMERA_MODES.fixed;
+          save(state);
+          render();
+        });
+      }
+
+      const enterBtn=document.getElementById("btn_enter_town");
+      if(enterBtn)enterBtn.addEventListener("click",()=>travelTo(state,"town"));
+      const enterDungeonBtn=document.getElementById("btn_enter_dungeon");
+      const dungeonDestination=currentDungeonDestination(state);
+      if(enterDungeonBtn&&dungeonDestination){
+        enterDungeonBtn.addEventListener("click",()=>travelTo(state,dungeonDestination.area.id,{bypassTravelRequirement:true,viaDungeon:true,arrivalX:dungeonDestination.arrivalX,arrivalY:dungeonDestination.arrivalY}));
+      }
+      document.getElementById("btn_gather").addEventListener("click",()=>gatherResource(state));
+      document.getElementById("btn_search").addEventListener("click",()=>searchTile(state));
+
+      window.onkeydown=(e)=>{
+        if(state.tab!=="explore")return;
+        if(state.combat||hasBlockingCenterOverlay(state))return;
+        if(isInteractiveField(e))return;
+        const move=movementDeltaForKey(e.key);
+        if(!move)return;
+        e.preventDefault();
+        if(canMoveToDelta(move.dx,move.dy))movePlayer(state,move.dx,move.dy);
+      };
+    }else{
+      window.onkeydown=null;
+    }
+  }
 
   function renderInventoryTab(){const p=state.player;const inv=calcInventorySlots(p);const inTown=state.world.areaId==="town";const inventorySort=normalizeSortConfig(state.ui.inventorySort,"name");const mhId=p.equipment.mainHand||null;const mhItem=mhId?getItem(mhId):null;const mainTwoHanded=isTwoHandWeapon(mhItem);const eqRows=EQUIP_SLOTS.map(slot=>{if(slot.id==="offHand"&&mainTwoHanded&&mhItem){return`
             <div class="kv">
@@ -6988,11 +7143,10 @@
       groups.get(groupId).push(featId);
     }
     const sections = orderedClassIds.map(function (classId) {
-          const featIdsInGroup = groups.get(classId) || [];
-          if (!featIdsInGroup.length)
-			return"";
-		  return 
-          `<div class="classFeatGroup">
+      const featIdsInGroup = groups.get(classId) || [];
+      if (!featIdsInGroup.length) return "";
+      return `
+          <div class="classFeatGroup">
             <div class="classFeatGroupHeader">
               <h4>${escapeHtml(classId)}</h4>
             </div>
@@ -7012,11 +7166,14 @@
                       </span>
                     </button>
                   `;
-              }).join("")}
+                }).join("")}
               </div>
             </div>
           </div>
-        `;}).filter(Boolean);return sections.length?`<div class="classFeatGroupList">${sections.join("")}</div>`:`<div class="classFeatEmpty">No feats are currently unlocked for your class mix.</div>`;};
+        `;
+    }).filter(Boolean);
+    return sections.length ? `<div class="classFeatGroupList">${sections.join("")}</div>` : `<div class="classFeatEmpty">No feats are currently unlocked for your class mix.</div>`;
+  };
 
   const BaseUseActiveAbility=useActiveAbility;
 
