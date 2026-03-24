@@ -1,0 +1,352 @@
+/* World map, terrain, tiles, and shared badges */
+
+.creatorName {
+  grid-area: name;
+}
+
+.creatorRace {
+  grid-area: race;
+}
+
+.creatorClass {
+  grid-area: class;
+}
+
+.creatorPreview {
+  grid-area: preview;
+}
+
+.creatorScores {
+  grid-area: abilities;
+}
+
+.creatorSkills {
+  grid-area: skills;
+}
+
+.creatorStart {
+  grid-area: start;
+}
+
+.field {
+  display: grid;
+  gap: 6px;
+}
+
+.field label {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.field input,.field select {
+  background: rgba(17,21,34,.65);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 10px 10px;
+  color: var(--text);
+  outline: none;
+}
+
+.creatorName input {
+  font-size: 16px;
+}
+
+.field input:focus,.field select:focus {
+  border-color: rgba(116,192,252,.65);
+}
+
+.pointBuyRow {
+  display: flex;
+  margin-bottom: 8px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 8px 10px;
+  border: 1px solid rgba(42,49,66,.7);
+  border-radius: 10px;
+  background: rgba(17,21,34,.55);
+}
+
+.pbControls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--mono);
+}
+
+.iconbtn {
+  width: 30px;
+  height: 30px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: rgba(21,25,36,.92);
+  color: var(--text);
+  cursor: pointer;
+}
+
+.iconbtn:disabled {
+  opacity: .5;
+  cursor: not-allowed;
+}
+
+.mapWrap {
+  display: flex;
+  gap: 12px;
+  align-items: stretch;
+  flex-wrap: wrap;
+}
+
+.mapPane {
+  flex: 1 1 420px;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+}
+
+.mapInfoPane {
+  flex: 1 1 260px;
+  min-width: 260px;
+}
+
+.mapLegend {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  align-items: center;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.legendItem {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  white-space: nowrap;
+  padding: 5px 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(42,49,66,.82);
+  background: rgba(17,21,34,.72);
+  box-shadow: 0 0 0 1px rgba(255,255,255,.03) inset;
+  color: rgba(231,233,238,.92);
+}
+
+.legendTerrain {
+  color: rgba(255,255,255,.96);
+}
+
+.legendIcon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 15px;
+  font-size: 15px;
+  line-height: 1;
+  font-family: var(--sans);
+}
+
+.legendSwatch {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  border-radius: 999px;
+  border: 1px solid rgba(255,255,255,.2);
+  box-shadow: 0 0 0 1px rgba(255,255,255,.05) inset;
+  flex: 0 0 auto;
+}
+
+.legendSwatch.terrain-forest {
+  background: #0b3d1a;
+  border-color: #1f7a3a;
+}
+
+.legendSwatch.terrain-plains {
+  background: #1f7a1f;
+  border-color: #55b55a;
+}
+
+.legendSwatch.terrain-dirt {
+  background: #7a5a2b;
+  border-color: #c2a46a;
+}
+
+.legendSwatch.terrain-water {
+  background: #0b4a6e;
+  border-color: #4aa3cf;
+}
+
+.legendSwatch.terrain-mountain {
+  background: #3f4657;
+  border-color: #7f889d;
+}
+
+.mapViewport {
+  --map-cell-size: 28px;
+  --map-gap: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  min-width: 0;
+  padding: 8px;
+  overflow: hidden;
+  background: rgba(17,21,34,.55);
+  border: 1px solid rgba(42,49,66,.7);
+  border-radius: 10px;
+  max-width: 100%;
+}
+
+.map {
+  display: grid;
+  grid-template-columns: repeat(var(--map-cols,1),var(--map-cell-size));
+  grid-auto-rows: var(--map-cell-size);
+  gap: var(--map-gap);
+  align-content: center;
+  justify-content: center;
+  justify-items: center;
+  margin: 0 auto;
+  width: max-content;
+}
+
+.mapControls {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 10px;
+}
+
+.tile {
+  width: var(--map-cell-size);
+  height: var(--map-cell-size);
+  border-radius: clamp(7px,calc(var(--map-cell-size) * 0.24),12px);
+  border: 1px solid rgba(42,49,66,.7);
+  background: rgba(21,25,36,.92);
+  color: rgba(255,255,255,.82);
+  text-shadow: 0 1px 1px rgba(0,0,0,.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: clamp(12px,calc(var(--map-cell-size) * 0.56),26px);
+  font-family: "Apple Color Emoji","Segoe UI Emoji",var(--sans);
+  line-height: 1;
+  cursor: default;
+  user-select: none;
+}
+
+.tile.revealed {
+  color: rgba(255,255,255,.98);
+}
+
+.tile.fog {
+  filter: brightness(.62) saturate(.62);
+  color: rgba(255,255,255,.58);
+}
+
+.tile.player {
+  outline: 2px solid rgba(116,192,252,.8);
+}
+
+.tile.home {
+  box-shadow: 0 0 0 2px rgba(255,212,59,.7) inset;
+}
+
+.tile.dungeon {
+  box-shadow: 0 0 0 2px rgba(186,104,200,.72) inset;
+}
+
+.tile:hover {
+  border-color: rgba(116,192,252,.55);
+}
+
+.tile:disabled {
+  cursor: not-allowed;
+  opacity: .65;
+}
+
+.tileBlank {
+  color: transparent;
+  text-shadow: none;
+}
+
+.tile.terrain-forest {
+  background: #0b3d1a;
+}
+
+.tile.terrain-plains {
+  background: #1f7a1f;
+}
+
+.tile.terrain-dirt {
+  background: #c2a46a;
+}
+
+.tile.terrain-water {
+  background: #0b4a6e;
+}
+
+.tile.terrain-mountain {
+  background: #3f4657;
+}
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 8px;
+  border-radius: 999px;
+  border: 1px solid rgba(42,49,66,.8);
+  background: rgba(17,21,34,.55);
+  font-size: 12px;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+.badge.good {
+  border-color: rgba(81,207,102,.55);
+  color: rgba(81,207,102,.95);
+}
+
+.badge.bad {
+  border-color: rgba(255,107,107,.55);
+  color: rgba(255,107,107,.95);
+}
+
+.badge.warn {
+  border-color: rgba(255,212,59,.55);
+  color: rgba(255,212,59,.95);
+}
+
+.badge.terrain-badge {
+  color: rgba(255,255,255,.95);
+  border-color: rgba(255,255,255,.18);
+}
+
+.badge.terrain-forest {
+  background: #0b3d1a;
+  color: #d8ffe1;
+  border-color: #1f7a3a;
+}
+
+.badge.terrain-plains {
+  background: #1f7a1f;
+  color: #ebffe5;
+  border-color: #55b55a;
+}
+
+.badge.terrain-dirt {
+  background: #7a5a2b;
+  color: #fff3da;
+  border-color: #c2a46a;
+}
+
+.badge.terrain-water {
+  background: #0b4a6e;
+  color: #daf2ff;
+  border-color: #4aa3cf;
+}
+
+.badge.terrain-mountain {
+  background: #3f4657;
+  color: #eef2ff;
+  border-color: #7f889d;
+}

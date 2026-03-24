@@ -1,0 +1,538 @@
+/* Combat, class feats, and battle responsiveness */
+
+@keyframes combatGlowPulse {
+  0%,100% {
+    box-shadow: 0 0 0 0 rgba(255,107,107,.18),0 0 0 1px rgba(255,107,107,.18) inset;
+  }
+  50% {
+    box-shadow: 0 0 0 3px rgba(255,107,107,.12),0 0 24px rgba(255,107,107,.32),0 0 0 1px rgba(255,107,107,.34) inset;
+  }
+}
+
+.tabbtn.combatAlert {
+  border-color: rgba(255,107,107,.68);
+  background: linear-gradient(180deg,rgba(75,26,26,.94),rgba(33,15,15,.92));
+  animation: combatGlowPulse 1.4s ease-in-out infinite;
+}
+
+.tabbtn.combatAlert:hover {
+  border-color: rgba(255,107,107,.9);
+}
+
+.tabbtn.combatAlert.active {
+  border-color: rgba(255,107,107,.92);
+  background: linear-gradient(180deg,rgba(97,31,31,.96),rgba(40,16,16,.94));
+}
+
+.menuAlertDot.danger {
+  border-color: rgba(255,107,107,.44);
+  background: rgba(255,107,107,.14);
+  color: var(--bad);
+}
+
+.combatTabLayout {
+  gap: 12px;
+}
+
+.combatBattlefieldBody {
+  display: grid;
+  gap: 14px;
+}
+
+.combatFormation {
+  display: grid;
+  gap: 8px;
+  padding: 12px;
+  border-radius: 16px;
+  border: 1px solid rgba(90,99,120,.42);
+  background: rgba(17,21,34,.56);
+}
+
+.combatFormation.enemy {
+  border-color: rgba(255,107,107,.42);
+  background: linear-gradient(180deg,rgba(78,24,24,.32),rgba(20,13,18,.46));
+  box-shadow: 0 0 0 1px rgba(255,107,107,.08) inset;
+}
+
+.combatFormation.ally {
+  border-color: rgba(255,212,59,.42);
+  background: linear-gradient(180deg,rgba(88,72,18,.28),rgba(22,19,11,.44));
+  box-shadow: 0 0 0 1px rgba(255,212,59,.08) inset;
+}
+
+.combatFormationTitle {
+  text-align: center;
+  font-size: 11px;
+  letter-spacing: .14em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.combatFormation.enemy .combatFormationTitle {
+  color: rgba(255,190,190,.86);
+}
+
+.combatFormation.ally .combatFormationTitle {
+  color: rgba(255,225,138,.9);
+}
+
+.combatRowWrap {
+  display: grid;
+  gap: 6px;
+}
+
+.combatRowLabel {
+  text-align: center;
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.combatRowGrid {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 10px;
+  min-height: 74px;
+}
+
+.combatUnit {
+  display: grid;
+  gap: 6px;
+  width: 88px;
+  padding: 8px 8px 7px;
+  border-radius: 12px;
+  border: 1px solid rgba(90,99,120,.52);
+  background: rgba(18,22,32,.84);
+  box-shadow: 0 10px 20px rgba(0,0,0,.22);
+  text-align: center;
+  transition: border-color .16s ease,transform .16s ease,box-shadow .16s ease;
+}
+
+.combatUnit:hover {
+  border-color: rgba(116,192,252,.62);
+  transform: translateY(-1px);
+}
+
+.combatUnit.selected {
+  border-color: rgba(116,192,252,.82);
+  box-shadow: 0 0 0 1px rgba(116,192,252,.22) inset,0 12px 24px rgba(0,0,0,.28);
+}
+
+.combatUnit.enemy.selected {
+  border-color: rgba(255,107,107,.78);
+  box-shadow: 0 0 0 1px rgba(255,107,107,.2) inset,0 12px 24px rgba(0,0,0,.28);
+}
+
+.combatUnitAvatar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  min-height: 34px;
+}
+
+.combatUnitEmoji {
+  font-size: 28px;
+  line-height: 1;
+}
+
+.combatUnitImage {
+  width: 34px;
+  height: 34px;
+  object-fit: cover;
+  border-radius: 10px;
+  border: 1px solid rgba(90,99,120,.42);
+}
+
+.combatUnitName {
+  display: block;
+  min-height: 28px;
+  font-size: 11px;
+  line-height: 1.25;
+  color: var(--text);
+}
+
+.combatMiniHp {
+  width: 100%;
+  height: 5px;
+  border-radius: 999px;
+  background: rgba(255,255,255,.08);
+  overflow: hidden;
+}
+
+.combatMiniHpFill {
+  height: 100%;
+  width: 50%;
+  border-radius: 999px;
+  background: linear-gradient(90deg,rgba(255,107,107,.96),rgba(255,107,107,.45));
+}
+
+.combatTargetCard {
+  display: grid;
+  gap: 12px;
+  padding: 14px;
+  border-radius: 14px;
+  border: 1px solid rgba(90,99,120,.6);
+  background: linear-gradient(180deg,rgba(17,21,34,.9),rgba(12,16,24,.92));
+}
+
+.combatTargetHead {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.combatTargetLabel {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: .14em;
+  color: var(--muted);
+}
+
+.combatTargetName {
+  font-size: 18px;
+  font-weight: 700;
+}
+
+.combatTargetStats {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.combatActionButtons {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.combatActionWrap {
+  display: inline-flex;
+}
+
+.combatSubheading {
+  margin-bottom: 6px;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.combatItemPanel {
+  display: grid;
+  gap: 8px;
+  padding-top: 2px;
+}
+
+.combatActionMeta {
+  margin-top: 2px;
+}
+
+.combatDetailsPill {
+  cursor: help;
+}
+
+@media (max-width: 720px) {
+  .combatRowGrid {
+    gap: 8px;
+    min-height: auto;
+  }
+  .combatUnit {
+    width: 78px;
+    padding: 8px 6px 7px;
+  }
+  .combatUnitEmoji {
+    font-size: 24px;
+  }
+  .combatTargetHead {
+    align-items: stretch;
+  }
+}
+
+.classFeatGroupList {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.classFeatGroup {
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: rgba(255,255,255,.02);
+  padding: 12px;
+}
+
+.classFeatGroupHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.classFeatGroupHeader h4 {
+  margin: 0;
+  font-size: 16px;
+}
+
+.classFeatGrid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.classFeatBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid var(--border);
+  background: rgba(17,21,34,.72);
+  color: var(--text);
+  border-radius: 999px;
+  padding: 8px 12px;
+  cursor: pointer;
+}
+
+.classFeatBtn:hover {
+  transform: translateY(-1px);
+}
+
+.classFeatBtn.locked {
+  opacity: .6;
+}
+
+.classFeatBtn.unlocked {
+  border-color: rgba(212,175,55,.26);
+}
+
+.classFeatBtn.invested {
+  background: rgba(212,175,55,.08);
+  box-shadow: 0 0 0 1px rgba(212,175,55,.18) inset;
+}
+
+.classFeatIcon {
+  font-size: 18px;
+  line-height: 1;
+}
+
+.classFeatText {
+  display: flex;
+  gap: 6px;
+  align-items: baseline;
+  flex-wrap: wrap;
+}
+
+.classFeatName {
+  font-weight: 700;
+}
+
+.classFeatRank {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.classFeatEmpty {
+  color: var(--muted);
+  line-height: 1.5;
+}
+
+.classFeatSummaryRow {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+.classFeatDialogCard {
+  width: min(620px,calc(100vw - 20px));
+}
+
+.classFeatDialogBody {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  white-space: normal;
+}
+
+.featMenuSection {
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 12px;
+  background: rgba(255,255,255,.02);
+}
+
+.featMenuSectionTitle {
+  font-weight: 700;
+  margin-bottom: 8px;
+}
+
+.featDetailList,.featPreviewList,.featReqList {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.featDetailItem,.featPreviewItem,.featReqItem {
+  line-height: 1.45;
+}
+
+.featPreviewItem.good,.featReqItem.good {
+  color: rgba(139,230,170,.98);
+}
+
+.featPreviewItem.warn {
+  color: rgba(255,214,140,.98);
+}
+
+.featReqItem.bad {
+  color: rgba(255,141,141,.98);
+}
+
+.featDialogFooter {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.featDialogControls {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.classFeatHeaderPill {
+  box-shadow: none;
+}
+
+.classFeatDialogHeader {
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.classFeatInlineNote {
+  border-radius: 12px;
+  padding: 10px 12px;
+  line-height: 1.45;
+}
+
+.classFeatInlineNote.bad {
+  border: 1px solid rgba(255,107,107,.34);
+  background: rgba(255,107,107,.10);
+  color: rgba(255,193,193,.98);
+}
+
+.classFeatInlineNote.warn {
+  border: 1px solid rgba(255,212,59,.28);
+  background: rgba(255,212,59,.08);
+  color: rgba(255,230,168,.98);
+}
+
+.featDialogStepper .btn {
+  min-width: 58px;
+  justify-content: center;
+}
+
+.simpleFeatRankLine {
+  margin-top: 4px;
+  line-height: 1.45;
+}
+
+.simpleFeatSummary {
+  line-height: 1.55;
+  color: var(--muted);
+}
+
+.simpleFeatNotes {
+  line-height: 1.45;
+}
+
+.noticeCard.gold {
+  border-color: rgba(212,175,55,.62);
+  background: linear-gradient(180deg,rgba(60,42,10,.96),rgba(26,22,13,.98));
+}
+
+.noticeCard.gold .centerCardEyebrow,.noticeCard.gold .centerCardTitle {
+  color: rgba(255,220,110,.98);
+}
+
+.noticeCard.gold .centerCardListItem {
+  border-color: rgba(212,175,55,.26);
+  background: rgba(212,175,55,.10);
+}
+
+@media (max-width: 720px) {
+  .classFeatBtn {
+    width: 100%;
+    justify-content: flex-start;
+  }
+  .featDialogFooter {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .featDialogControls {
+    width: 100%;
+  }
+  .featDialogControls .btn,.featDialogFooter .btn {
+    width: 100%;
+  }
+}
+
+.classFeatGroupList {
+  gap: 8px;
+}
+
+.classFeatGroup {
+  padding: 10px 12px;
+  border-radius: 12px;
+}
+
+.classFeatGroupHeader {
+  margin-bottom: 4px;
+}
+
+.classFeatGroupHeader h4 {
+  font-size: 12px;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.classFeatGrid {
+  gap: 6px;
+  margin-top: 0;
+}
+
+.classFeatBtn {
+  padding: 6px 10px;
+  min-height: 34px;
+  font-size: 13px;
+}
+
+.classFeatIcon {
+  font-size: 15px;
+}
+
+.classFeatText {
+  gap: 4px;
+}
+
+.classFeatRank {
+  font-size: 11px;
+}
+
+.classFeatSummaryRow {
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+@media (max-width: 720px) {
+  .classFeatGroup {
+    padding: 9px 10px;
+  }
+  .classFeatBtn {
+    padding: 7px 10px;
+  }
+}
