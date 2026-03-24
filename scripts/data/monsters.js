@@ -10,7 +10,7 @@
       "hp": 12,
       "ac": 12,
       "attackBonus": 3,
-      "damage": "1d6+2",
+      "damage": "1d4+2",
       "damageType": "slashing",
       "status": [
         {
@@ -61,7 +61,7 @@
       "hp": 14,
       "ac": 11,
       "attackBonus": 3,
-      "damage": "1d6+1",
+      "damage": "1d4+1",
       "damageType": "piercing",
       "status": [
         {
@@ -110,8 +110,8 @@
       "level": 2,
       "hp": 20,
       "ac": 13,
-      "attackBonus": 4,
-      "damage": "1d8+2",
+      "attackBonus": 3,
+      "damage": "1d6+2",
       "damageType": "slashing",
       "status": [
         {
@@ -159,8 +159,8 @@
       "level": 2,
       "hp": 18,
       "ac": 12,
-      "attackBonus": 4,
-      "damage": "1d6+3",
+      "attackBonus": 3,
+      "damage": "1d6+2",
       "damageType": "piercing",
       "status": [
         {
@@ -208,8 +208,8 @@
       "level": 3,
       "hp": 28,
       "ac": 10,
-      "attackBonus": 5,
-      "damage": "1d10+2",
+      "attackBonus": 4,
+      "damage": "1d6+2",
       "damageType": "acid",
       "status": [
         {
@@ -257,8 +257,8 @@
       "level": 3,
       "hp": 26,
       "ac": 14,
-      "attackBonus": 6,
-      "damage": "1d8+3",
+      "attackBonus": 5,
+      "damage": "1d6+3",
       "damageType": "piercing",
       "status": [
         {
@@ -315,8 +315,8 @@
       "level": 4,
       "hp": 34,
       "ac": 14,
-      "attackBonus": 7,
-      "damage": "1d10+4",
+      "attackBonus": 6,
+      "damage": "1d8+4",
       "damageType": "fire",
       "status": [
         {
@@ -433,7 +433,7 @@
       "hp": 42,
       "ac": 15,
       "attackBonus": 8,
-      "damage": "1d12+4",
+      "damage": "1d10+4",
       "damageType": "bludgeoning",
       "status": [
         {
@@ -490,8 +490,8 @@
       "level": 5,
       "hp": 38,
       "ac": 16,
-      "attackBonus": 9,
-      "damage": "2d6+4",
+      "attackBonus": 8,
+      "damage": "2d4+4",
       "damageType": "necrotic",
       "status": [
         {
@@ -548,8 +548,8 @@
       "level": 6,
       "hp": 54,
       "ac": 18,
-      "attackBonus": 11,
-      "damage": "2d8+5",
+      "attackBonus": 9,
+      "damage": "2d6+5",
       "damageType": "electricity",
       "status": [
         {
@@ -606,8 +606,8 @@
       "level": 6,
       "hp": 58,
       "ac": 19,
-      "attackBonus": 12,
-      "damage": "2d10+5",
+      "attackBonus": 10,
+      "damage": "2d8+5",
       "damageType": "slashing",
       "status": [
         {
